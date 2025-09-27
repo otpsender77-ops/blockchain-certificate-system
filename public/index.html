@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Excellence Institute - Certificate System</title>
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-reader@1.0.4/dist/index.min.js" defer></script>
+    <script src="qr-code-utils.js" defer></script>
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header" id="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <h1>Digital Excellence Institute</h1>
+                    <span>Blockchain Certificate System</span>
+                </div>
+                <nav class="nav" id="mainNav">
+                    <!-- Navigation will be populated by JavaScript -->
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main">
+        <!-- Login Page -->
+        <section id="loginPage" class="page active">
+            <div class="container">
+                <div class="login-container">
+                    <div class="login-card card">
+                        <div class="card__body">
+                            <h2>Admin Login</h2>
+                            <p>Access the certificate management system</p>
+                            <form id="loginForm" class="form">
+                                <div class="form-group">
+                                    <label class="form-label" for="username">Username:</label>
+                                    <input type="text" id="username" class="form-control" value="admin" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="password">Password:</label>
+                                    <input type="password" id="password" class="form-control" value="admin123" required>
+                                </div>
+                                
+                                <!-- MetaMask Connection Section -->
+                                <div class="metamask-section" id="metamaskSection">
+                                    <div class="form-group">
+                                        <label class="form-label">MetaMask Wallet:</label>
+                                        <div class="metamask-status" id="metamaskStatus">
+                                            <div class="metamask-not-connected">
+                                                <span class="metamask-icon">🦊</span>
+                                                <span>MetaMask not connected</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="connectMetaMaskBtn" class="btn btn--outline btn--full-width">
+                                            Connect MetaMask Wallet
+                                        </button>
+                                    </div>
+                                    <div class="metamask-address" id="metamaskAddress" style="display: none;">
+                                        <small>Connected: <span id="connectedAddress"></span></small>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn--primary btn--full-width" id="loginBtn" disabled>
+                                    Login to System
+                                </button>
+                            </form>
+                            <div class="login-footer">
+                                <p><a href="#" id="verifierLink">Access Verifier Portal</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Dashboard -->
+        <section id="adminDashboard" class="page">
+            <div class="container">
+                <div class="dashboard-header">
+                    <h2>Admin Dashboard</h2>
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalCertificates">0</div>
+                            <div class="stat-label">Total Certificates</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="todayCertificates">0</div>
+                            <div class="stat-label">Today's Certificates</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number" id="totalVerifications">0</div>
+                            <div class="stat-label">Total Verifications</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-actions">
+                    <button class="btn btn--primary" id="generateCertBtn">Generate New Certificate</button>
+                    <button class="btn btn--secondary" id="manageCertBtn">Manage Certificates</button>
+                    <button class="btn btn--outline" id="emailHistoryBtn">Email History</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Certificate Generation -->
+        <section id="certificateGeneration" class="page">
+            <div class="container">
+                <div class="generation-layout">
+                    <div class="generation-form">
+                        <div class="card">
+                            <div class="card__body">
+                                <div class="generation-header">
+                                    <h3>Generate Certificate</h3>
+                                    <button type="button" id="batchModeBtn" class="btn btn--outline">Batch Mode</button>
+                                </div>
+                                <form id="certificateForm" class="form">
+                                    <div class="form-group">
+                                        <label class="form-label" for="studentName">Student Name:</label>
+                                        <input type="text" id="studentName" class="form-control" required>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label" for="parentName">Parent Name:</label>
+                                        <input type="text" id="parentName" class="form-control" required>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label" for="district">District:</label>
+                                        <input type="text" id="district" class="form-control" required>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label" for="state">State:</label>
+                                        <select id="state" class="form-control" required>
+                                            <option value="">Select State</option>
+                                            <option value="MEGHALAYA">MEGHALAYA</option>
+                                            <option value="ASSAM">ASSAM</option>
+                                            <option value="WEST BENGAL">WEST BENGAL</option>
+                                            <option value="DELHI">DELHI</option>
+                                            <option value="MAHARASHTRA">MAHARASHTRA</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label" for="courseName">Course Name:</label>
+                                        <select id="courseName" class="form-control" required>
+                                            <option value="">Select Course</option>
+                                            <option value="Certificate Course in Entrepreneurship (CCE)">Certificate Course in Entrepreneurship (CCE)</option>
+                                            <option value="Digital Marketing Fundamentals">Digital Marketing Fundamentals</option>
+                                            <option value="Web Development Bootcamp">Web Development Bootcamp</option>
+                                            <option value="Data Science Essentials">Data Science Essentials</option>
+                                            <option value="Blockchain Technology">Blockchain Technology</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label class="form-label" for="studentEmail">Student Email:</label>
+                                        <input type="email" id="studentEmail" class="form-control" required>
+                                    </div>
+                                    
+                                    <div class="form-actions">
+                                        <button type="submit" class="btn btn--primary">Generate Certificate</button>
+                                        <button type="button" class="btn btn--outline" id="previewBtn">Preview</button>
+                                    </div>
+                                </form>
+                                
+                                <div id="blockchainStatus" class="blockchain-status" style="display: none;">
+                                    <h4>Blockchain Transaction</h4>
+                                    <div class="status-item">
+                                        <span class="status-label">Transaction Hash:</span>
+                                        <span class="status-value" id="txHash"></span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="status-label">Block Number:</span>
+                                        <span class="status-value" id="blockNumber"></span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="status-label">Gas Used:</span>
+                                        <span class="status-value" id="gasUsed"></span>
+                                    </div>
+                                    <div class="status-indicator status--success">
+                                        ✓ Certificate stored on blockchain
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Batch Processing Interface -->
+                        <div id="batchProcessingCard" class="card" style="display: none;">
+                            <div class="card__body">
+                                <div class="generation-header">
+                                    <h3>Batch Certificate Generation</h3>
+                                    <button type="button" id="singleModeBtn" class="btn btn--outline">Single Mode</button>
+                                </div>
+                                
+                                <!-- CSV Upload Section -->
+                                <div class="batch-section">
+                                    <h4>Upload CSV/Excel File</h4>
+                                    <div class="form-group">
+                                        <label class="form-label" for="csvFile">Select CSV/Excel File:</label>
+                                        <input type="file" id="csvFile" class="form-control" accept=".csv,.xlsx,.xls">
+                                        <small>Maximum 50 students per batch. Download <a href="#" id="downloadTemplate">template</a></small>
+                                    </div>
+                                    <button type="button" id="uploadCsvBtn" class="btn btn--primary">Upload and Process</button>
+                                </div>
+                                
+                                <div class="divider">OR</div>
+                                
+                                <!-- Manual Entry Section -->
+                                <div class="batch-section">
+                                    <h4>Manual Entry (Up to 50 students)</h4>
+                                    <div class="batch-controls">
+                                        <button type="button" id="addStudentBtn" class="btn btn--secondary">Add Student</button>
+                                        <button type="button" id="clearAllBtn" class="btn btn--outline">Clear All</button>
+                                        <span id="studentCount">0 students added</span>
+                                    </div>
+                                    
+                                    <div id="batchStudentsList" class="batch-students-list">
+                                        <!-- Students will be added here dynamically -->
+                                    </div>
+                                    
+                                    <div class="form-actions">
+                                        <button type="button" id="generateBatchBtn" class="btn btn--primary" disabled>Generate Batch Certificates</button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Batch Processing Results -->
+                                <div id="batchResults" class="batch-results" style="display: none;">
+                                    <h4>Batch Processing Results</h4>
+                                    <div id="batchResultsContent"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="generation-preview">
+                        <div class="card">
+                            <div class="card__body">
+                                <div class="certificate-preview" id="certificatePreview">
+                                    <!-- Certificate preview will be rendered here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Certificate Management -->
+        <section id="certificateManagement" class="page">
+            <div class="container">
+                <div class="management-header">
+                    <h3>Certificate Management</h3>
+                    <div class="management-controls">
+                        <input type="text" id="searchCertificates" class="form-control" placeholder="Search certificates...">
+                        <button class="btn btn--outline" id="refreshBtn">🔄 Refresh</button>
+                        <button class="btn btn--outline" id="exportBtn">Export CSV</button>
+                    </div>
+                </div>
+                
+                <div class="certificates-table">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Certificate ID</th>
+                                <th>Student Name</th>
+                                <th>Course</th>
+                                <th>Date Generated</th>
+                                <th>Status</th>
+                                <th>Transaction Hash</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="certificatesTableBody">
+                            <!-- Certificates will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Verifier Portal -->
+        <section id="verifierPortal" class="page">
+            <div class="container">
+                <div class="verifier-header">
+                    <h2>Certificate Verification Portal</h2>
+                    <p>Verify the authenticity of certificates issued by Digital Excellence Institute</p>
+                </div>
+                
+                <div class="verification-methods">
+                    <div class="method-tabs">
+                        <button class="tab-btn active" data-tab="certificateId">Certificate ID</button>
+                        <button class="tab-btn" data-tab="blockchainHash">Transaction Hash</button>
+                        <button class="tab-btn" data-tab="qrScan">QR Code</button>
+                    </div>
+                    
+                    <div class="tab-content">
+                        <div id="certificateIdTab" class="tab-panel active">
+                            <div class="verification-form">
+                                <div class="form-group">
+                                    <label class="form-label">Enter Certificate ID:</label>
+                                    <input type="text" id="verifyCertId" class="form-control" placeholder="e.g., CRT2025001">
+                                </div>
+                                <button class="btn btn--primary" id="verifyCertIdBtn">
+                                    <span id="verifyCertIdBtnText">Verify Certificate</span>
+                                    <span id="verifyCertIdBtnLoading" style="display: none;">Verifying...</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="blockchainHashTab" class="tab-panel">
+                            <div class="verification-form">
+                                <div class="form-group">
+                                    <label class="form-label">Enter Blockchain Transaction Hash:</label>
+                                    <input type="text" id="verifyHashInput" class="form-control" placeholder="0x...">
+                                </div>
+                                <button class="btn btn--primary" id="verifyHashBtn">
+                                    <span id="verifyHashBtnText">Verify Transaction</span>
+                                    <span id="verifyHashBtnLoading" style="display: none;">Verifying...</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="qrScanTab" class="tab-panel">
+                            <div class="verification-form">
+                                <div class="form-group">
+                                    <label class="form-label">Scan QR Code with Webcam:</label>
+                                    <div id="qrScanner" style="text-align: center; margin: 20px 0;">
+                                        <video id="qrVideo" width="320" height="240" style="border: 2px solid #1e40af; border-radius: 8px; display: none;"></video>
+                                        <canvas id="qrCanvas" width="320" height="240" style="display: none;"></canvas>
+                                        <div id="qrStatus" style="margin: 10px 0; padding: 10px; background: #f3f4f6; border-radius: 8px;">
+                                            <p>Click "Start Camera" to begin QR code scanning</p>
+                                        </div>
+                                        <button class="btn btn--secondary" id="startCameraBtn">Start Camera</button>
+                                        <button class="btn btn--outline" id="stopCameraBtn" style="display: none;">Stop Camera</button>
+                                        <button class="btn btn--primary" id="scanQRBtn" style="display: none; margin-left: 10px;">Scan QR Code</button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Or paste QR Code Data manually:</label>
+                                    <textarea id="qrCodeInput" class="form-control" rows="4" placeholder="Paste QR code content here..."></textarea>
+                                    <small>Alternative: Scan QR code and paste the content above</small>
+                                </div>
+                                <button class="btn btn--primary" id="verifyQRBtn">
+                                    <span id="verifyQRBtnText">Verify QR Code</span>
+                                    <span id="verifyQRBtnLoading" style="display: none;">Verifying...</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="verificationResult" class="verification-result" style="display: none;">
+                    <!-- Verification results will be shown here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Email Preview Modal -->
+        <div id="emailModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Email Preview</h3>
+                    <button class="modal-close" id="closeEmailModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="email-preview" id="emailPreview">
+                        <!-- Email content will be rendered here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn--primary" id="sendEmailBtn">Send Email</button>
+                    <button class="btn btn--outline" id="cancelEmailBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Certificate Detail Modal -->
+        <div id="certificateModal" class="modal hidden">
+            <div class="modal-content large">
+                <div class="modal-header">
+                    <h3>Certificate Details</h3>
+                    <button class="modal-close" id="closeCertModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="certificateDetail">
+                        <!-- Certificate detail will be rendered here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn--primary" id="printCertBtn">Print Certificate</button>
+                    <button class="btn btn--secondary" id="resendEmailBtn">Resend Email</button>
+                    <button class="btn btn--outline" id="closeCertDetailBtn">Close</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Revocation Modal -->
+        <div id="revocationModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Revoke Certificate</h3>
+                    <button class="modal-close" id="closeRevocationModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label" for="revocationReason">Revocation Reason:</label>
+                        <textarea id="revocationReason" class="form-control" rows="4" placeholder="Enter the reason for revoking this certificate..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="revokedBy">Revoked By:</label>
+                        <input type="text" id="revokedBy" class="form-control" placeholder="Enter your name or designation" required>
+                    </div>
+                    <div class="warning-box">
+                        <strong>⚠️ Warning:</strong> This action cannot be undone. The certificate will be marked as revoked and the student will be notified via email.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn--danger" id="confirmRevokeBtn">Revoke Certificate</button>
+                    <button class="btn btn--outline" id="cancelRevokeBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-spinner hidden">
+        <div class="spinner"></div>
+        <p>Processing...</p>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
