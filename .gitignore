@@ -98,6 +98,8 @@ dist/
 # Temporary files
 tmp/
 temp/
+public/temp/
+logs/
 
 # Database files
 *.db
@@ -120,6 +122,7 @@ build/contracts/
 
 # Ganache files
 .ganache/
+blockchain-data/
 
 # Private keys and sensitive files
 *.pem

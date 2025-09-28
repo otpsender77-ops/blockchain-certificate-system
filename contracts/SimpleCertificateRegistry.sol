@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-contract WorkingCertificateRegistry {
+contract SimpleCertificateRegistry {
     uint256 public totalCertificates;
     
     struct Certificate {

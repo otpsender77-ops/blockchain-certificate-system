@@ -54,7 +54,7 @@ class BlockchainService {
   async setupContract() {
     try {
       // Load ABI from deployed contract
-      const contractArtifact = require('../build/contracts/WorkingCertificateRegistry.json');
+      const contractArtifact = require('../build/contracts/SimpleCertificateRegistry.json');
       const contractABI = contractArtifact.abi;
 
       // Try to get existing contract or deploy new one
@@ -173,7 +173,7 @@ class BlockchainService {
         certificateHash
       ).send({
         from: this.accounts[0],
-        gas: process.env.GAS_LIMIT || 200000,
+        gas: process.env.GAS_LIMIT || 500000,
         gasPrice: process.env.GAS_PRICE || '20000000000'
       });
 
@@ -210,20 +210,24 @@ class BlockchainService {
           // Use smart contract verification
           const result = await this.contract.methods.verifyCertificate(certificateId).call();
           
-          // Check if the certificate exists on blockchain
-          if (result.isValid && result.studentName && result.studentName !== '') {
+          // The contract returns an object with named properties
+          const { studentName, courseName, instituteName, issueDate, certificateHash, isValid } = result;
+          
+          // Check if the certificate exists on blockchain and is valid
+          if (isValid && studentName && studentName !== '' && studentName !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+            console.log(`✅ Certificate ${certificateId} verified on blockchain`);
             return {
               isValid: true,
-              studentName: result.studentName,
-              courseName: result.courseName,
-              instituteName: result.instituteName,
-              issueDate: new Date(Number(result.issueDate) * 1000),
-              certificateHash: result.certificateHash,
+              studentName: studentName,
+              courseName: courseName,
+              instituteName: instituteName,
+              issueDate: new Date(Number(issueDate) * 1000),
+              certificateHash: certificateHash,
               verificationMethod: 'blockchain'
             };
           } else {
-            // Certificate not found on blockchain, but might exist in database
-            console.log(`🔍 Certificate ${certificateId} not found on blockchain, using database fallback`);
+            // Certificate not found on blockchain or invalid, but might exist in database
+            console.log(`🔍 Certificate ${certificateId} not found on blockchain or invalid, using database fallback`);
             return {
               isValid: true, // We'll let the database verification handle the actual validation
               studentName: '',
