@@ -129,3 +129,5 @@ blockchain-data/
 *.key
 private-key.txt
 mnemonic.txt
+
+.vercel

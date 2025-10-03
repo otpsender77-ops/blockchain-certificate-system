@@ -18,6 +18,9 @@ const emailService = require('./services/emailService');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Vercel deployment
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
@@ -48,7 +51,11 @@ app.use('/api/', limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? ['https://yourdomain.com'] : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: process.env.NODE_ENV === 'production' ? [
+    'https://block-certi-28k6fqhx6-otpsender77-3024s-projects.vercel.app',
+    'https://block-certi-sigma.vercel.app',
+    'https://*.vercel.app'
+  ] : ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true
 }));
 
@@ -84,20 +91,24 @@ mongoose.connect(process.env.MONGODB_URI, {
 .then(() => {
   console.log('✅ Connected to MongoDB');
   
-  // Initialize blockchain connection
-  return blockchainService.initialize();
+  // Initialize email service (non-blocking)
+  return emailService.initialize().catch((error) => {
+    console.warn('⚠️ Email service initialization failed, continuing without email:', error.message);
+    return null;
+  });
 })
 .then(() => {
-  console.log('✅ Connected to Holesky testnet blockchain');
+  console.log('✅ Email service initialized (or skipped)');
   
-  // Initialize email service
-  return emailService.initialize();
-})
-.then(() => {
-  console.log('✅ Email service initialized');
+  // Initialize blockchain connection (non-blocking, after server starts)
+  setTimeout(() => {
+    blockchainService.initialize().catch((error) => {
+      console.warn('⚠️ Blockchain initialization failed, continuing without blockchain:', error.message);
+    });
+  }, 1000);
 })
 .catch((error) => {
-  console.error('❌ Database or Blockchain connection error:', error);
+  console.error('❌ Critical service initialization error:', error);
   process.exit(1);
 });
 
@@ -112,7 +123,16 @@ app.get('/api/health', (req, res) => {
     status: 'OK',
     timestamp: new Date().toISOString(),
     blockchain: blockchainService.isConnected(),
-    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected'
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Simple test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
   });
 });
 

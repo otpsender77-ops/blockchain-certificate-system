@@ -46,8 +46,13 @@
                                     <input type="password" id="password" class="form-control" value="admin123" required>
                                 </div>
                                 
-                                <!-- MetaMask Connection Section -->
-                                <div class="metamask-section" id="metamaskSection">
+                                <!-- Step 1: Username/Password Login -->
+                                <button type="submit" class="btn btn--primary btn--full-width" id="loginBtn">
+                                    Verify Credentials
+                                </button>
+                                
+                                <!-- MetaMask Connection Section (Hidden initially) -->
+                                <div class="metamask-section" id="metamaskSection" style="display: none;">
                                     <div class="form-group">
                                         <label class="form-label">MetaMask Wallet:</label>
                                         <div class="metamask-status" id="metamaskStatus">
@@ -63,11 +68,10 @@
                                     <div class="metamask-address" id="metamaskAddress" style="display: none;">
                                         <small>Connected: <span id="connectedAddress"></span></small>
                                     </div>
+                                    <button type="button" id="completeLoginBtn" class="btn btn--primary btn--full-width" disabled>
+                                        Complete Login
+                                    </button>
                                 </div>
-                                
-                                <button type="submit" class="btn btn--primary btn--full-width" id="loginBtn" disabled>
-                                    Login to System
-                                </button>
                             </form>
                             <div class="login-footer">
                                 <p><a href="#" id="verifierLink">Access Verifier Portal</a></p>

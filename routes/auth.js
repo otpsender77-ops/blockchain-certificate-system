@@ -40,28 +40,76 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Login endpoint
+// Login endpoint - Two-step authentication
 router.post('/login', async (req, res) => {
   try {
+    console.log('Login attempt:', { username: req.body.username, hasPassword: !!req.body.password, hasMetaMask: !!req.body.metaMaskAddress });
+    
     const { username, password, metaMaskAddress } = req.body;
 
     if (!username || !password) {
+      console.log('Missing credentials:', { username: !!username, password: !!password });
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
+    console.log('Attempting to authenticate user:', username);
     const user = await User.authenticate(username, password);
+    console.log('User authenticated successfully:', user.username);
     
-    // If MetaMask address is provided, verify it's connected
-    if (metaMaskAddress) {
-      // For admin users, require MetaMask connection
+    // Step 1: If no MetaMask address provided, just verify credentials
+    if (!metaMaskAddress) {
+      console.log('Step 1: Username/password verified, MetaMask required for admin');
+      
+      // For admin users, require MetaMask for step 2
       if (user.role === 'admin') {
-        if (!metaMaskAddress) {
-          return res.status(400).json({ error: 'MetaMask connection required for admin access' });
-        }
-        
-        // Store MetaMask address in user session (optional)
-        console.log(`Admin ${username} logged in with MetaMask: ${metaMaskAddress}`);
+        return res.json({
+          success: true,
+          step: 1,
+          message: 'Username/password verified. MetaMask connection required for admin access.',
+          requiresMetaMask: true,
+          user: {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role
+          }
+        });
+      } else {
+        // Non-admin users can login without MetaMask
+        const token = jwt.sign(
+          { 
+            userId: user._id, 
+            username: user.username, 
+            role: user.role,
+            metaMaskAddress: null
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        return res.json({
+          success: true,
+          step: 2,
+          token,
+          user: {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            permissions: user.permissions,
+            metaMaskAddress: null
+          }
+        });
       }
+    }
+    
+    // Step 2: MetaMask address provided - complete authentication
+    if (user.role === 'admin') {
+      if (!metaMaskAddress) {
+        return res.status(400).json({ error: 'MetaMask connection required for admin access' });
+      }
+      
+      console.log(`Step 2: Admin ${username} completing login with MetaMask: ${metaMaskAddress}`);
     }
     
     const token = jwt.sign(
@@ -77,6 +125,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       success: true,
+      step: 2,
       token,
       user: {
         id: user._id,

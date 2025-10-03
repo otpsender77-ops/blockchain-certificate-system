@@ -12,6 +12,7 @@ class CertificateSystem {
         this.authToken = localStorage.getItem('authToken');
         this.metaMaskConnected = false;
         this.metaMaskAddress = null;
+        this.tempCredentials = null;
         
         console.log('CertificateSystem constructor called');
         this.init();
@@ -226,13 +227,22 @@ class CertificateSystem {
 
     updateLoginButton() {
         const loginBtn = document.getElementById('loginBtn');
+        const completeLoginBtn = document.getElementById('completeLoginBtn');
+        
         if (loginBtn) {
+            // Step 1 button is always enabled for username/password
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Verify Credentials';
+        }
+        
+        if (completeLoginBtn) {
+            // Step 2 button is only enabled when MetaMask is connected
             if (this.metaMaskConnected && this.metaMaskAddress) {
-                loginBtn.disabled = false;
-                loginBtn.textContent = 'Login to System';
+                completeLoginBtn.disabled = false;
+                completeLoginBtn.textContent = 'Complete Login';
             } else {
-                loginBtn.disabled = true;
-                loginBtn.textContent = 'Connect MetaMask First';
+                completeLoginBtn.disabled = true;
+                completeLoginBtn.textContent = 'Connect MetaMask First';
             }
         }
     }
@@ -281,6 +291,15 @@ class CertificateSystem {
                     e.preventDefault();
                     console.log('Verifier link clicked');
                     this.showPage('verifierPortal');
+                };
+            }
+
+            // Complete login button
+            const completeLoginBtn = document.getElementById('completeLoginBtn');
+            if (completeLoginBtn) {
+                completeLoginBtn.onclick = () => {
+                    console.log('Complete login button clicked');
+                    this.completeLogin();
                 };
             }
 
@@ -512,13 +531,7 @@ class CertificateSystem {
             return;
         }
 
-        // Check if MetaMask is connected first
-        if (!this.metaMaskConnected || !this.metaMaskAddress) {
-            this.showNotification('Please connect MetaMask wallet first', 'error');
-            return;
-        }
-
-        // Now authenticate credentials with MetaMask address
+        // Step 1: Authenticate username/password first
         await this.authenticateCredentials(username, password);
     }
 
@@ -526,6 +539,7 @@ class CertificateSystem {
         this.showLoading(true);
 
         try {
+            // Step 1: Authenticate username/password (without MetaMask)
             const response = await fetch(`${this.apiBaseUrl}/auth/login`, {
                 method: 'POST',
                 headers: {
@@ -533,21 +547,34 @@ class CertificateSystem {
                 },
                 body: JSON.stringify({ 
                     username, 
-                    password, 
-                    metaMaskAddress: this.metaMaskAddress 
+                    password
+                    // No MetaMask address yet - this is step 1
                 })
             });
 
             const data = await response.json();
 
             if (data.success) {
-                // Login successful, redirect to dashboard
-                this.showNotification('Login successful! Redirecting to dashboard...', 'success');
-                setTimeout(() => {
+                if (data.step === 1 && data.requiresMetaMask) {
+                    // Step 1 successful - now require MetaMask connection
+                    this.showNotification('Username/Password verified! Please connect MetaMask wallet to continue.', 'success');
+                    this.showMetaMaskSection();
+                    
+                    // Store temporary credentials for step 2
+                    this.tempCredentials = { username, password };
+                } else if (data.step === 2 && data.token) {
+                    // Complete login successful (non-admin user)
+                    this.authToken = data.token;
+                    this.currentUser = data.user;
+                    localStorage.setItem('authToken', this.authToken);
+                    
+                    this.showNotification('Login successful! Welcome to the system.', 'success');
+                    this.renderNavigation();
                     this.showPage('adminDashboard');
-                }, 1000);
+                    await this.updateStats();
+                }
             } else {
-                this.showNotification(data.error || 'Invalid credentials', 'error');
+                this.showNotification(data.error || 'Invalid username or password', 'error');
             }
         } catch (error) {
             console.error('Authentication error:', error);
@@ -572,35 +599,46 @@ class CertificateSystem {
             return;
         }
 
+        // Check if we have temporary credentials from step 1
+        if (!this.tempCredentials) {
+            this.showNotification('Please complete username/password authentication first', 'error');
+            return;
+        }
+
         this.showLoading(true);
 
         try {
+            // Step 2: Complete authentication with MetaMask
             const response = await fetch(`${this.apiBaseUrl}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ 
-                    username: document.getElementById('username').value.trim(),
-                    password: document.getElementById('password').value.trim(),
+                    username: this.tempCredentials.username,
+                    password: this.tempCredentials.password,
                     metaMaskAddress: this.metaMaskAddress
                 })
             });
 
             const data = await response.json();
 
-            if (data.success) {
+            if (data.success && data.step === 2 && data.token) {
+                // Complete login successful
                 this.authToken = data.token;
                 this.currentUser = data.user;
                 localStorage.setItem('authToken', this.authToken);
                 localStorage.setItem('metaMaskAddress', this.metaMaskAddress);
+                
+                // Clear temporary credentials
+                this.tempCredentials = null;
                 
                 this.showNotification('Login successful! Welcome to the admin panel.', 'success');
                 this.renderNavigation();
                 this.showPage('adminDashboard');
                 await this.updateStats();
             } else {
-                this.showNotification(data.error || 'Login failed', 'error');
+                this.showNotification(data.error || 'MetaMask authentication failed', 'error');
             }
         } catch (error) {
             console.error('Login error:', error);
@@ -614,7 +652,9 @@ class CertificateSystem {
         console.log('Logging out user');
         this.currentUser = null;
         this.authToken = null;
+        this.tempCredentials = null;
         localStorage.removeItem('authToken');
+        localStorage.removeItem('metaMaskAddress');
         this.renderNavigation();
         this.showPage('loginPage');
         this.showNotification('Logged out successfully.', 'info');

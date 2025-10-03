@@ -26,12 +26,19 @@ class BlockchainService {
 
       // Get accounts (for testnet, we'll use the private key)
       if (process.env.PRIVATE_KEY && process.env.PRIVATE_KEY !== 'YOUR_TESTNET_PRIVATE_KEY') {
-        const privateKey = process.env.PRIVATE_KEY.startsWith('0x') ? process.env.PRIVATE_KEY : '0x' + process.env.PRIVATE_KEY;
-        const account = this.web3.eth.accounts.privateKeyToAccount(privateKey);
-        this.web3.eth.accounts.wallet.add(account);
-        this.web3.eth.defaultAccount = account.address;
-        this.accounts = [account.address];
-        console.log(`📋 Using testnet account: ${account.address}`);
+        try {
+          const privateKey = process.env.PRIVATE_KEY.startsWith('0x') ? process.env.PRIVATE_KEY : '0x' + process.env.PRIVATE_KEY;
+          const account = this.web3.eth.accounts.privateKeyToAccount(privateKey);
+          this.web3.eth.accounts.wallet.add(account);
+          this.web3.eth.defaultAccount = account.address;
+          this.accounts = [account.address];
+          console.log(`📋 Using testnet account: ${account.address}`);
+        } catch (error) {
+          console.warn('⚠️ Invalid private key, falling back to local accounts:', error.message);
+          this.accounts = await this.web3.eth.getAccounts();
+          console.log(`📋 Found ${this.accounts.length} accounts`);
+          this.web3.eth.defaultAccount = this.accounts[0];
+        }
       } else {
         // Fallback to local accounts
         this.accounts = await this.web3.eth.getAccounts();
