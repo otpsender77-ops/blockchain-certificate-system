@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { validateLogin } = require('../middleware/validation');
 const router = express.Router();
 
 // Middleware to verify JWT token
@@ -41,20 +42,21 @@ const authenticateToken = async (req, res, next) => {
 };
 
 // Login endpoint - Two-step authentication
-router.post('/login', async (req, res) => {
+router.post('/login', validateLogin, async (req, res) => {
   try {
-    console.log('Login attempt:', { username: req.body.username, hasPassword: !!req.body.password, hasMetaMask: !!req.body.metaMaskAddress });
+    // Log login attempt without exposing sensitive data
+    console.log('Login attempt from IP:', req.ip, 'at', new Date().toISOString());
     
     const { username, password, metaMaskAddress } = req.body;
 
     if (!username || !password) {
-      console.log('Missing credentials:', { username: !!username, password: !!password });
+      console.log('Missing credentials from IP:', req.ip);
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    console.log('Attempting to authenticate user:', username);
+    console.log('Authentication attempt for user:', username, 'from IP:', req.ip);
     const user = await User.authenticate(username, password);
-    console.log('User authenticated successfully:', user.username);
+    console.log('Authentication successful for user:', user.username, 'from IP:', req.ip);
     
     // Step 1: If no MetaMask address provided, just verify credentials
     if (!metaMaskAddress) {

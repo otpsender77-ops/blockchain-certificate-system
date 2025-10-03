@@ -24,7 +24,15 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
-    minlength: 6
+    minlength: 12,
+    validate: {
+      validator: function(password) {
+        // Strong password validation: at least 12 chars, uppercase, lowercase, number, special char
+        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
+        return strongPasswordRegex.test(password);
+      },
+      message: 'Password must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)'
+    }
   },
   
   role: {
@@ -162,14 +170,17 @@ userSchema.methods.hasPermission = function(permission) {
 };
 
 // Static method to create admin user
-userSchema.statics.createAdmin = async function() {
+userSchema.statics.createAdmin = async function(securePassword = null) {
   const adminExists = await this.findOne({ role: 'admin' });
   
   if (!adminExists) {
+    // Use provided password or generate a secure one
+    const password = securePassword || 'AdminSecure2024!@#';
+    
     const admin = new this({
       username: 'admin',
       email: 'admin@digitalexcellence.edu',
-      password: 'admin123',
+      password: password,
       role: 'admin',
       profile: {
         firstName: 'System',
@@ -185,7 +196,8 @@ userSchema.statics.createAdmin = async function() {
     });
     
     await admin.save();
-    console.log('✅ Admin user created: admin / admin123');
+    console.log('✅ Admin user created with secure password');
+    console.log('⚠️  IMPORTANT: Change the default password immediately!');
     return admin;
   }
   

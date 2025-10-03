@@ -531,6 +531,12 @@ class CertificateSystem {
             return;
         }
 
+        // Validate password strength
+        if (!this.validatePasswordStrength(password)) {
+            this.showNotification('Password must be at least 12 characters long and contain uppercase, lowercase, number, and special character', 'error');
+            return;
+        }
+
         // Step 1: Authenticate username/password first
         await this.authenticateCredentials(username, password);
     }
@@ -2269,6 +2275,12 @@ class CertificateSystem {
             if (textSpan) textSpan.style.display = 'inline';
             if (loadingSpan) loadingSpan.style.display = 'none';
         }
+    }
+
+    validatePasswordStrength(password) {
+        // Strong password validation: at least 12 chars, uppercase, lowercase, number, special char
+        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
+        return strongPasswordRegex.test(password);
     }
 
     validateForm(data) {
