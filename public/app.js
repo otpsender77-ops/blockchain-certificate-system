@@ -9,7 +9,12 @@ class CertificateSystem {
         this.pendingEmailCertificate = null;
         this.currentViewingCertificate = null;
         // Use production backend URL for deployment
-        this.apiBaseUrl = process.env.NODE_ENV === 'production' 
+        // Check if we're on Vercel (production) or local development
+        const isProduction = window.location.hostname.includes('vercel.app') || 
+                           window.location.hostname.includes('netlify.app') ||
+                           window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        
+        this.apiBaseUrl = isProduction
             ? 'https://blockchain-certificate-backend.vercel.app/api'
             : window.location.origin + '/api';
         this.authToken = localStorage.getItem('authToken');
@@ -3262,8 +3267,8 @@ class CertificateSystem {
     async resetPassword() {
         const email = document.getElementById('resetEmail').getAttribute('data-email');
         const otp = document.getElementById('resetOTP').value.trim();
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
+        const newPassword = document.getElementById('newPasswordProfile').value;
+        const confirmPassword = document.getElementById('confirmPasswordProfile').value;
 
         if (!email || !otp || !newPassword || !confirmPassword) {
             this.showNotification('Please fill in all fields', 'error');
@@ -3419,8 +3424,8 @@ class CertificateSystem {
     showChangePasswordModal() {
         // Clear form
         document.getElementById('currentPassword').value = '';
-        document.getElementById('newPassword').value = '';
-        document.getElementById('confirmPassword').value = '';
+        document.getElementById('newPasswordProfile').value = '';
+        document.getElementById('confirmPasswordProfile').value = '';
         
         this.showModal('changePasswordModal');
     }
