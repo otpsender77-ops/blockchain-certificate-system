@@ -10,7 +10,7 @@ class CertificateSystem {
         this.currentViewingCertificate = null;
         // Use production backend URL for deployment
         this.apiBaseUrl = process.env.NODE_ENV === 'production' 
-            ? 'https://blockchain-certificate-backend.onrender.com/api'
+            ? 'https://blockchain-certificate-backend.vercel.app/api'
             : window.location.origin + '/api';
         this.authToken = localStorage.getItem('authToken');
         this.metaMaskConnected = false;
