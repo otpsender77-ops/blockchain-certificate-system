@@ -1,220 +1,187 @@
 # 🚀 Deployment Guide
 
-## GitHub & Vercel Deployment
-
-This guide will help you deploy your Blockchain Certificate System to GitHub and Vercel.
+This guide will help you deploy the Blockchain Certificate System to Vercel (Frontend) and Render (Backend).
 
 ## 📋 Prerequisites
 
-1. **GitHub Account** - [Sign up here](https://github.com)
-2. **Vercel Account** - [Sign up here](https://vercel.com)
-3. **MongoDB Atlas** - [Sign up here](https://www.mongodb.com/atlas) (for production database)
-4. **Brevo Account** - [Sign up here](https://www.brevo.com) (for email service)
+- GitHub account
+- Vercel account
+- Render account
+- MongoDB Atlas account
+- Pinata account (for IPFS)
 
-## 🔧 Step 1: Prepare Your Project
+## 🌐 Frontend Deployment (Vercel)
 
-### 1.1 Initialize Git Repository
-```bash
-git init
-git add .
-git commit -m "Initial commit: Blockchain Certificate System"
-```
+### Step 1: Prepare Repository
+1. Push your code to GitHub
+2. Ensure all files are committed
 
-### 1.2 Create GitHub Repository
-1. Go to [GitHub](https://github.com) and create a new repository
-2. Name it: `blockchain-certificate-system`
-3. Make it **Public** (required for free Vercel deployment)
-4. Don't initialize with README (we already have files)
-
-### 1.3 Push to GitHub
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/blockchain-certificate-system.git
-git branch -M main
-git push -u origin main
-```
-
-## 🌐 Step 2: Deploy to Vercel
-
-### 2.1 Connect to Vercel
-1. Go to [Vercel](https://vercel.com)
+### Step 2: Deploy to Vercel
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Click "New Project"
 3. Import your GitHub repository
-4. Vercel will auto-detect it's a Node.js project
+4. Configure project:
+   - **Framework Preset**: Other
+   - **Root Directory**: Leave empty
+   - **Build Command**: `npm run vercel-build`
+   - **Output Directory**: `public`
+   - **Install Command**: `npm install`
 
-### 2.2 Configure Environment Variables
-In Vercel dashboard, go to **Settings > Environment Variables** and add:
+### Step 3: Environment Variables
+Add these environment variables in Vercel:
+- `NODE_ENV`: `production`
+- `REACT_APP_API_URL`: `https://your-render-app.onrender.com/api`
 
-#### Database Configuration
-```
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/bcs?retryWrites=true&w=majority
-```
+### Step 4: Deploy
+Click "Deploy" and wait for deployment to complete.
 
-#### Email Configuration (Brevo)
-```
-SMTP_HOST=smtp-relay.brevo.com
-SMTP_PORT=587
-SMTP_USER=your-brevo-email@example.com
-SMTP_PASS=your-brevo-smtp-key
-SMTP_FROM=your-brevo-email@example.com
-EMAIL_FROM=your-brevo-email@example.com
-```
+## 🔧 Backend Deployment (Render)
 
-#### Institute Information
-```
-INSTITUTE_NAME=Your Institute Name
-INSTITUTE_ADDRESS=Your Institute Address
-INSTITUTE_LOGO_URL=https://your-domain.com/logo.png
-```
+### Step 1: Prepare Repository
+Ensure your repository has:
+- `package.json` with correct start script
+- `server.production.js` for production
+- `render.yaml` for configuration
 
-#### Frontend URL
-```
-FRONTEND_URL=https://your-app.vercel.app
-```
+### Step 2: Deploy to Render
+1. Go to [Render Dashboard](https://dashboard.render.com)
+2. Click "New +" → "Web Service"
+3. Connect your GitHub repository
+4. Configure service:
+   - **Name**: `blockchain-certificate-backend`
+   - **Environment**: `Node`
+   - **Region**: Choose closest to your users
+   - **Branch**: `main`
+   - **Root Directory**: Leave empty
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
 
-#### Blockchain Configuration (Holesky Testnet)
-```
-BLOCKCHAIN_NETWORK=holesky
-BLOCKCHAIN_RPC_URL=https://rpc.ankr.com/eth_holesky
-BLOCKCHAIN_NETWORK_ID=17000
-BLOCKCHAIN_CHAIN_ID=0x4268
-CONTRACT_ADDRESS=0xFcbc69C6F4DbEE5EA92573C309c2B3D2Ff4a427e
-PRIVATE_KEY=your-private-key-here
-```
+### Step 3: Environment Variables
+Add all environment variables from `render.yaml` or manually:
+- `NODE_ENV`: `production`
+- `PORT`: `10000`
+- `MONGODB_URI`: Your Atlas connection string
+- `JWT_SECRET`: Your JWT secret
+- `PINATA_API_KEY`: Your Pinata API key
+- `PINATA_SECRET_KEY`: Your Pinata secret key
+- `EMAIL_USER`: Your email service user
+- `EMAIL_PASS`: Your email service password
+- `PRIVATE_KEY`: Your blockchain private key
+- And all other variables from `config.production.env`
 
-#### Security
-```
-JWT_SECRET=your-super-secret-jwt-key-here
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=your-secure-admin-password
-```
+### Step 4: Deploy
+Click "Create Web Service" and wait for deployment.
 
-#### Performance
-```
-USE_BLOCKCHAIN_FALLBACK=false
-NODE_ENV=production
-```
+## 🔗 Connecting Frontend to Backend
 
-### 2.3 Deploy
-1. Click "Deploy" in Vercel
-2. Wait for deployment to complete
-3. Your app will be available at: `https://your-app.vercel.app`
-
-## 🗄️ Step 3: Setup Production Database
-
-### 3.1 MongoDB Atlas Setup
-1. Create a new cluster in MongoDB Atlas
-2. Create a database user
-3. Whitelist Vercel's IP addresses (or use 0.0.0.0/0 for all)
-4. Get your connection string
-5. Add it to Vercel environment variables
-
-### 3.2 Database Connection String Format
-```
-mongodb+srv://username:password@cluster.mongodb.net/bcs?retryWrites=true&w=majority
+### Update Frontend API URL
+In `public/app.js`, update the API base URL:
+```javascript
+this.apiBaseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://your-render-app.onrender.com/api'
+    : window.location.origin + '/api';
 ```
 
-## 📧 Step 4: Setup Email Service
+### CORS Configuration
+Ensure your Render backend allows requests from your Vercel frontend domain.
 
-### 4.1 Brevo SMTP Setup
-1. Create a Brevo account
-2. Go to SMTP & API settings
-3. Generate an SMTP key
-4. Add credentials to Vercel environment variables
+## 🧪 Testing Deployment
 
-## 🔗 Step 5: Blockchain Configuration
-
-### 5.1 Holesky Testnet Setup
-1. Get test ETH from [Holesky Faucet](https://faucet.holesky.ethpandaops.io/)
-2. Deploy your smart contract to Holesky
-3. Update contract address in environment variables
-
-### 5.2 Smart Contract Deployment
-```bash
-# Deploy to Holesky testnet
-truffle migrate --network holesky
-```
-
-## 🔒 Step 6: Security Configuration
-
-### 6.1 Environment Variables Security
-- Never commit `.env` files to Git
-- Use strong, unique passwords
-- Rotate JWT secrets regularly
-- Use environment-specific configurations
-
-### 6.2 CORS Configuration
-The app is configured to work with Vercel domains automatically.
-
-## 🚀 Step 7: Post-Deployment
-
-### 7.1 Test Your Deployment
+### Frontend Tests
 1. Visit your Vercel URL
-2. Test certificate generation
-3. Test email sending
-4. Test blockchain verification
-5. Test MetaMask integration
+2. Test login functionality
+3. Test certificate generation
+4. Test verification portal
 
-### 7.2 Monitor Performance
-- Check Vercel analytics
-- Monitor MongoDB Atlas metrics
-- Check email delivery rates
-- Monitor blockchain transaction success
+### Backend Tests
+1. Test health endpoint: `https://your-render-app.onrender.com/api/health`
+2. Test verification: `https://your-render-app.onrender.com/api/verification/certificate-id`
+3. Check logs in Render dashboard
 
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
-#### 1. Build Failures
-- Check Node.js version compatibility
-- Verify all dependencies are in package.json
-- Check for missing environment variables
+1. **CORS Errors**
+   - Check CORS configuration in `server.production.js`
+   - Ensure frontend URL is whitelisted
 
-#### 2. Database Connection Issues
-- Verify MongoDB Atlas connection string
-- Check IP whitelist settings
-- Ensure database user has proper permissions
+2. **Database Connection Issues**
+   - Verify MongoDB Atlas connection string
+   - Check IP whitelist in Atlas
 
-#### 3. Email Sending Issues
-- Verify Brevo SMTP credentials
-- Check email quotas and limits
-- Test with different email providers
+3. **Environment Variables**
+   - Ensure all required variables are set
+   - Check variable names match exactly
 
-#### 4. Blockchain Issues
-- Verify Holesky testnet connection
-- Check contract address and ABI
-- Ensure sufficient test ETH balance
+4. **Build Failures**
+   - Check Node.js version compatibility
+   - Verify all dependencies are in `package.json`
 
-## 📊 Monitoring & Maintenance
+### Logs
+- **Vercel**: Check function logs in dashboard
+- **Render**: Check service logs in dashboard
 
-### Regular Tasks
-1. **Monitor Vercel usage** - Check function execution limits
-2. **Database maintenance** - Monitor MongoDB Atlas usage
-3. **Email monitoring** - Check Brevo delivery rates
-4. **Blockchain monitoring** - Monitor transaction success rates
-5. **Security updates** - Keep dependencies updated
+## 📊 Monitoring
 
-### Performance Optimization
-1. **Enable caching** - Use Vercel's edge caching
-2. **Optimize images** - Compress and optimize assets
-3. **Database indexing** - Add indexes for better performance
-4. **CDN usage** - Leverage Vercel's global CDN
+### Vercel
+- Monitor function executions
+- Check performance metrics
+- Set up alerts for errors
+
+### Render
+- Monitor service health
+- Check resource usage
+- Set up uptime monitoring
+
+## 🔄 Updates
+
+### Frontend Updates
+1. Push changes to GitHub
+2. Vercel automatically redeploys
+
+### Backend Updates
+1. Push changes to GitHub
+2. Render automatically redeploys
+3. Check logs for any issues
+
+## 🛡️ Security Considerations
+
+1. **Environment Variables**
+   - Never commit sensitive data
+   - Use strong, unique secrets
+   - Rotate keys regularly
+
+2. **Database Security**
+   - Use strong passwords
+   - Enable IP whitelisting
+   - Enable authentication
+
+3. **API Security**
+   - Implement rate limiting
+   - Use HTTPS only
+   - Validate all inputs
+
+## 📈 Performance Optimization
+
+1. **Frontend**
+   - Enable Vercel's CDN
+   - Optimize images
+   - Minimize bundle size
+
+2. **Backend**
+   - Use connection pooling
+   - Implement caching
+   - Monitor resource usage
 
 ## 🆘 Support
 
 If you encounter issues:
-1. Check Vercel deployment logs
-2. Review MongoDB Atlas logs
-3. Check Brevo email logs
-4. Verify blockchain transaction status
-5. Contact support for your respective services
+1. Check the logs first
+2. Verify environment variables
+3. Test locally with production config
+4. Check service status pages
 
-## 🎉 Success!
+---
 
-Once deployed, your Blockchain Certificate System will be:
-- ✅ Globally accessible via Vercel
-- ✅ Scalable and reliable
-- ✅ Secure with proper environment variables
-- ✅ Integrated with production services
-- ✅ Ready for real-world usage
-
-**Your app URL:** `https://your-app.vercel.app`
+**🎉 Your Blockchain Certificate System is now live!**

@@ -74,6 +74,7 @@
                                 </div>
                             </form>
                             <div class="login-footer">
+                                <p><a href="#" id="forgotPasswordLink">Forgot Password?</a></p>
                                 <p><a href="#" id="verifierLink">Access Verifier Portal</a></p>
                             </div>
                         </div>
@@ -365,6 +366,137 @@
             </div>
         </section>
 
+        <!-- Batch Processing Page -->
+        <section id="batchProcessing" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h2>Batch Certificate Processing</h2>
+                    <p>Process multiple certificates at once using CSV upload</p>
+                </div>
+                
+                <div class="batch-upload-section">
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-content">
+                            <span class="upload-icon">📁</span>
+                            <h3>Upload CSV File</h3>
+                            <p>Drag and drop your CSV file here or click to browse</p>
+                            <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                            <button class="btn btn--primary" onclick="document.getElementById('csvFileInput').click()">
+                                Choose File
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-preview" id="batchPreview" style="display: none;">
+                        <h3>Preview Data</h3>
+                        <div class="preview-table-container">
+                            <table class="preview-table">
+                                <thead id="previewTableHead"></thead>
+                                <tbody id="previewTableBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="batch-actions">
+                            <button class="btn btn--primary" id="processBatchBtn">Process Batch</button>
+                            <button class="btn btn--outline" id="clearBatchBtn">Clear</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="batch-progress" id="batchProgress" style="display: none;">
+                    <h3>Processing Progress</h3>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">0% Complete</div>
+                    <div class="progress-details" id="progressDetails"></div>
+                </div>
+                
+                <div class="batch-results" id="batchResults" style="display: none;">
+                    <h3>Processing Results</h3>
+                    <div class="results-summary">
+                        <div class="result-item success">
+                            <span class="result-icon">✅</span>
+                            <span class="result-text">Successful: <span id="successCount">0</span></span>
+                        </div>
+                        <div class="result-item error">
+                            <span class="result-icon">❌</span>
+                            <span class="result-text">Failed: <span id="errorCount">0</span></span>
+                        </div>
+                    </div>
+                    <div class="results-actions">
+                        <button class="btn btn--primary" id="downloadResultsBtn">Download Results</button>
+                        <button class="btn btn--outline" id="newBatchBtn">New Batch</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Revocation Center Page -->
+        <section id="revocationCenter" class="page">
+            <div class="container">
+                <div class="page-header">
+                    <h2>Certificate Revocation Center</h2>
+                    <p>Revoke certificates and manage revocation status</p>
+                </div>
+                
+                <div class="revocation-search">
+                    <div class="search-form">
+                        <div class="form-group">
+                            <label class="form-label" for="revocationSearch">Search Certificate:</label>
+                            <div class="search-input-group">
+                                <input type="text" id="revocationSearch" class="form-control" placeholder="Enter Certificate ID or Transaction Hash">
+                                <button class="btn btn--primary" id="searchRevocationBtn">Search</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="revocation-results" id="revocationResults" style="display: none;">
+                    <div class="certificate-info">
+                        <h3>Certificate Information</h3>
+                        <div class="info-grid" id="certificateInfoGrid"></div>
+                    </div>
+                    
+                    <div class="revocation-actions">
+                        <h3>Revocation Actions</h3>
+                        <div class="action-buttons">
+                            <button class="btn btn--danger" id="revokeCertificateBtn" style="display: none;">
+                                <span class="btn-icon">❌</span>
+                                Revoke Certificate
+                            </button>
+                            <button class="btn btn--success" id="restoreCertificateBtn" style="display: none;">
+                                <span class="btn-icon">✅</span>
+                                Restore Certificate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="revocation-history">
+                    <h3>Recent Revocations</h3>
+                    <div class="history-table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Certificate ID</th>
+                                    <th>Student Name</th>
+                                    <th>Status</th>
+                                    <th>Revoked By</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="revocationHistoryBody">
+                                <tr>
+                                    <td colspan="6" class="text-center">No revocation history available</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Email Preview Modal -->
         <div id="emailModal" class="modal hidden">
             <div class="modal-content">
@@ -436,6 +568,251 @@
     <div id="loadingSpinner" class="loading-spinner hidden">
         <div class="spinner"></div>
         <p>Processing...</p>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reset Password</h3>
+                <span class="close" id="closeForgotPasswordModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="forgotPasswordStep1">
+                    <p>Enter your email address to receive a password reset OTP:</p>
+                    <form id="forgotPasswordForm" class="form">
+                        <div class="form-group">
+                            <label class="form-label" for="resetEmail">Email:</label>
+                            <input type="email" id="resetEmail" class="form-control" placeholder="Enter your email" required>
+                        </div>
+                        <button type="submit" class="btn btn--primary btn--full-width">Send OTP</button>
+                    </form>
+                </div>
+                
+                <div id="forgotPasswordStep2" style="display: none;">
+                    <p>Enter the OTP sent to your email and your new password:</p>
+                    <form id="resetPasswordForm" class="form">
+                        <div class="form-group">
+                            <label class="form-label" for="resetOTP">OTP:</label>
+                            <input type="text" id="resetOTP" class="form-control" placeholder="Enter 6-digit OTP" maxlength="6" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="newPassword">New Password:</label>
+                            <input type="password" id="newPassword" class="form-control" placeholder="Enter new password" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="confirmPassword">Confirm Password:</label>
+                            <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm new password" required>
+                        </div>
+                        <button type="submit" class="btn btn--primary btn--full-width">Reset Password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Admin Profile</h3>
+                <button class="modal-close" id="closeProfileModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="profileForm" class="form">
+                    <div class="form-group">
+                        <label class="form-label" for="profileFullName">Full Name:</label>
+                        <input type="text" id="profileFullName" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="profileEmail">Email:</label>
+                        <input type="email" id="profileEmail" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="profilePhone">Phone:</label>
+                        <input type="tel" id="profilePhone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="profileDepartment">Department:</label>
+                        <input type="text" id="profileDepartment" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="profilePicture">Profile Picture URL:</label>
+                        <input type="url" id="profilePicture" class="form-control">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--primary" id="saveProfileBtn">Save Profile</button>
+                <button class="btn btn--outline" id="cancelProfileBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Change Password</h3>
+                <button class="modal-close" id="closeChangePasswordModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm" class="form">
+                    <div class="form-group">
+                        <label class="form-label" for="currentPassword">Current Password:</label>
+                        <input type="password" id="currentPassword" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="newPassword">New Password:</label>
+                        <input type="password" id="newPassword" class="form-control" required>
+                        <small class="form-text">Password must be at least 12 characters with uppercase, lowercase, number, and special character</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="confirmPassword">Confirm New Password:</label>
+                        <input type="password" id="confirmPassword" class="form-control" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--primary" id="savePasswordBtn">Change Password</button>
+                <button class="btn btn--outline" id="cancelPasswordBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>System Settings</h3>
+                <button class="modal-close" id="closeSettingsModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <button class="tab-btn active" data-tab="certificate">Certificate</button>
+                    <button class="tab-btn" data-tab="email">Email</button>
+                    <button class="tab-btn" data-tab="system">System</button>
+                    <button class="tab-btn" data-tab="security">Security</button>
+                </div>
+                
+                <div class="settings-content">
+                    <!-- Certificate Settings -->
+                    <div id="certificate-settings" class="settings-panel active">
+                        <h4>Certificate Settings</h4>
+                        <form id="certificateSettingsForm" class="form">
+                            <div class="form-group">
+                                <label class="form-label" for="instituteName">Institute Name:</label>
+                                <input type="text" id="instituteName" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="instituteAddress">Institute Address:</label>
+                                <textarea id="instituteAddress" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="defaultCourseName">Default Course Name:</label>
+                                <input type="text" id="defaultCourseName" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="certificateValidity">Certificate Validity (days):</label>
+                                <input type="number" id="certificateValidity" class="form-control" min="1" max="3650">
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Email Settings -->
+                    <div id="email-settings" class="settings-panel">
+                        <h4>Email Settings</h4>
+                        <form id="emailSettingsForm" class="form">
+                            <div class="form-group">
+                                <label class="form-label" for="fromName">From Name:</label>
+                                <input type="text" id="fromName" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="fromEmail">From Email:</label>
+                                <input type="email" id="fromEmail" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="includeQRCode" checked>
+                                    <span class="checkmark"></span>
+                                    Include QR Code in emails
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="includeVerificationLink" checked>
+                                    <span class="checkmark"></span>
+                                    Include verification link in emails
+                                </label>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- System Settings -->
+                    <div id="system-settings" class="settings-panel">
+                        <h4>System Settings</h4>
+                        <form id="systemSettingsForm" class="form">
+                            <div class="form-group">
+                                <label class="form-label" for="maxBatchSize">Max Batch Size:</label>
+                                <input type="number" id="maxBatchSize" class="form-control" min="1" max="100">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="autoEmailSending" checked>
+                                    <span class="checkmark"></span>
+                                    Auto-send emails after certificate generation
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="requireMetaMask" checked>
+                                    <span class="checkmark"></span>
+                                    Require MetaMask for admin login
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="enableRevocation" checked>
+                                    <span class="checkmark"></span>
+                                    Enable certificate revocation
+                                </label>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Security Settings -->
+                    <div id="security-settings" class="settings-panel">
+                        <h4>Security Settings</h4>
+                        <form id="securitySettingsForm" class="form">
+                            <div class="form-group">
+                                <label class="form-label" for="sessionTimeout">Session Timeout (hours):</label>
+                                <input type="number" id="sessionTimeout" class="form-control" min="1" max="168">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="maxLoginAttempts">Max Login Attempts:</label>
+                                <input type="number" id="maxLoginAttempts" class="form-control" min="3" max="20">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="lockoutDuration">Lockout Duration (minutes):</label>
+                                <input type="number" id="lockoutDuration" class="form-control" min="5" max="60">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-checkbox">
+                                    <input type="checkbox" id="requireStrongPasswords" checked>
+                                    <span class="checkmark"></span>
+                                    Require strong passwords
+                                </label>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn--primary" id="saveSettingsBtn">Save Settings</button>
+                <button class="btn btn--outline" id="resetSettingsBtn">Reset to Default</button>
+                <button class="btn btn--outline" id="cancelSettingsBtn">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <!-- Notification Container -->

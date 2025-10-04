@@ -575,6 +575,62 @@ class EmailService {
   isInitialized() {
     return this.isInitialized;
   }
+
+  async sendPasswordResetOTP(email, otp) {
+    try {
+      if (!this.isInitialized) {
+        throw new Error('Email service not initialized');
+      }
+
+      const mailOptions = {
+        from: process.env.SMTP_FROM,
+        to: email,
+        subject: 'Password Reset OTP - Digital Excellence Institute',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="margin: 0; font-size: 28px;">🔐 Password Reset</h1>
+              <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Digital Excellence Institute</p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e9ecef;">
+              <h2 style="color: #333; margin-top: 0;">Password Reset Request</h2>
+              
+              <p style="color: #666; font-size: 16px; line-height: 1.6;">
+                You have requested to reset your password. Use the following OTP to complete the process:
+              </p>
+              
+              <div style="background: #fff; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+                <h1 style="color: #667eea; font-size: 36px; margin: 0; letter-spacing: 5px; font-family: 'Courier New', monospace;">${otp}</h1>
+              </div>
+              
+              <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                <strong>Important:</strong>
+                <br>• This OTP is valid for 10 minutes only
+                <br>• Do not share this OTP with anyone
+                <br>• If you didn't request this reset, please ignore this email
+              </p>
+              
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef;">
+                <p style="color: #999; font-size: 12px; margin: 0;">
+                  This is an automated message from Digital Excellence Institute of Technology.<br>
+                  Please do not reply to this email.
+                </p>
+              </div>
+            </div>
+          </div>
+        `
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log(`✅ Password reset OTP sent to ${email}`);
+      return result;
+
+    } catch (error) {
+      console.error(`❌ Failed to send password reset OTP to ${email}:`, error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new EmailService();

@@ -232,4 +232,54 @@ router.get('/verify', authenticateToken, (req, res) => {
   });
 });
 
+// Change password route
+router.post('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: 'Old password and new password are required' });
+    }
+
+    // Validate new password strength
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/~`])[A-Za-z\d@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/~`]{12,}$/;
+    if (!strongPasswordRegex.test(newPassword)) {
+      return res.status(400).json({ 
+        error: 'New password must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character' 
+      });
+    }
+
+    // Find user
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify old password
+    const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
+    if (!isOldPasswordValid) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    user.password = hashedNewPassword;
+    await user.save();
+
+    console.log(`Password changed for user: ${user.username} from IP: ${req.ip}`);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
 module.exports = { router, authenticateToken };

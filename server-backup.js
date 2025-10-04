@@ -97,43 +97,54 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('✅ Connected to MongoDB');
-  
-  // Initialize email service (non-blocking)
-  return emailService.initialize().catch((error) => {
-    console.warn('⚠️ Email service initialization failed, continuing without email:', error.message);
-    return null;
-  });
-})
-.then(() => {
-  console.log('✅ Email service initialized (or skipped)');
-  
-  // Initialize IPFS service (non-blocking)
-  return ipfsService.initialize().catch((error) => {
-    console.warn('⚠️ IPFS service initialization failed, continuing without IPFS:', error.message);
-    return null;
-  });
-})
-.then(() => {
-  console.log('✅ IPFS service initialized (or skipped)');
-  
-  // Initialize blockchain connection (non-blocking, after server starts)
-  setTimeout(() => {
-    blockchainService.initialize().catch((error) => {
-      console.warn('⚠️ Blockchain initialization failed, continuing without blockchain:', error.message);
+// Initialize services asynchronously (Vercel-friendly)
+async function initializeServices() {
+  try {
+    // MongoDB connection (serverless-optimized)
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // 5 second timeout
+      connectTimeoutMS: 10000, // 10 second timeout
+      maxPoolSize: 1, // Maintain up to 1 socket connection for serverless
+      minPoolSize: 0, // Close connections when not in use
+      maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
     });
-  }, 1000);
-})
-.catch((error) => {
-  console.error('❌ Critical service initialization error:', error);
-  process.exit(1);
-});
+    console.log('✅ Connected to MongoDB');
+    
+    // Initialize email service (non-blocking)
+    try {
+      await emailService.initialize();
+      console.log('✅ Email service initialized successfully');
+    } catch (error) {
+      console.warn('⚠️ Email service initialization failed, continuing without email:', error.message);
+    }
+    
+    // Initialize IPFS service (non-blocking)
+    try {
+      await ipfsService.initialize();
+      console.log('✅ IPFS service initialized successfully');
+    } catch (error) {
+      console.warn('⚠️ IPFS service initialization failed, continuing without IPFS:', error.message);
+    }
+    
+    // Initialize blockchain connection (completely non-blocking for Vercel)
+    setTimeout(() => {
+      blockchainService.initialize().then(() => {
+        console.log('✅ Blockchain service initialized successfully');
+      }).catch((error) => {
+        console.warn('⚠️ Blockchain initialization failed, continuing without blockchain:', error.message);
+      });
+    }, 2000); // Delay blockchain initialization by 2 seconds
+    
+  } catch (error) {
+    console.error('❌ Service initialization error:', error.message);
+    // Don't exit process in Vercel, just log the error
+  }
+}
+
+// Start service initialization in background (non-blocking)
+initializeServices();
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -142,14 +153,22 @@ app.use('/api/verification', verificationRoutes);
 app.use('/api/forgot-password', forgotPasswordRoutes);
 app.use('/api/settings', settingsRoutes);
 
-// Health check endpoint
+// Vercel Speed Insights endpoint
+app.post('/api/vercel-insights', (req, res) => {
+  // Handle Vercel Speed Insights data
+  console.log('📊 Speed Insights data received:', req.body);
+  res.status(200).json({ success: true });
+});
+
+// Health check endpoint (Vercel-friendly)
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    blockchain: blockchainService.isConnected(),
+    environment: process.env.NODE_ENV || 'development',
     database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
-    environment: process.env.NODE_ENV || 'development'
+    blockchain: blockchainService.isConnected ? blockchainService.isConnected() : 'Initializing',
+    uptime: process.uptime()
   });
 });
 
@@ -157,7 +176,20 @@ app.get('/api/health', (req, res) => {
 app.get('/api/test', (req, res) => {
   res.json({
     message: 'Server is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    vercel: process.env.VERCEL === '1' ? 'Yes' : 'No'
+  });
+});
+
+// Quick status endpoint (no dependencies)
+app.get('/api/status', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    vercel: process.env.VERCEL === '1' ? 'Yes' : 'No',
+    uptime: process.uptime()
   });
 });
 
@@ -185,6 +217,11 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
@@ -205,9 +242,15 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🔗 Blockchain: http://${process.env.GANACHE_HOST}:${process.env.GANACHE_PORT}`);
-  console.log(`🗄️  Database: ${process.env.MONGODB_URI}`);
-});
+// Only start server if not in Vercel environment
+if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+    console.log(`🔗 Blockchain: http://${process.env.GANACHE_HOST}:${process.env.GANACHE_PORT}`);
+    console.log(`🗄️  Database: ${process.env.MONGODB_URI}`);
+  });
+}
+
+// Export for Vercel
+module.exports = app;

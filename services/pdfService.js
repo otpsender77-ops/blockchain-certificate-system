@@ -3,11 +3,11 @@ const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
+const ipfsService = require('./ipfsService');
 
 class PDFService {
   constructor() {
     this.outputDir = path.join(__dirname, '../public/certificates');
-    this.qrOutputDir = path.join(__dirname, '../public/qr-codes');
     this.initialized = false;
     this.browser = null;
   }
@@ -16,7 +16,9 @@ class PDFService {
     try {
       // Create output directories
       await fs.mkdir(this.outputDir, { recursive: true });
-      await fs.mkdir(this.qrOutputDir, { recursive: true });
+      
+      // Initialize IPFS service
+      await ipfsService.initialize();
       
       this.initialized = true;
       console.log('✅ PDF service initialized successfully');
@@ -33,15 +35,17 @@ class PDFService {
         await this.initialize();
       }
 
-      // Generate QR code first
-      const qrCodePath = await this.generateQRCode(certificate);
+      // Generate PDF with embedded QR code
+      const pdfPath = await this.generatePDF(certificate);
       
-      // Generate PDF
-      const pdfPath = await this.generatePDF(certificate, qrCodePath);
+      // Upload to IPFS
+      const ipfsResult = await ipfsService.uploadCertificateToIPFS(pdfPath);
       
       return {
         pdfPath,
-        qrCodePath,
+        ipfsHash: ipfsResult.hash,
+        ipfsUrl: ipfsResult.url,
+        ipfsSize: ipfsResult.size,
         success: true
       };
 
@@ -54,46 +58,8 @@ class PDFService {
     }
   }
 
-  async generateQRCode(certificate) {
-    try {
-      const qrData = {
-        certificateId: certificate.certificateId,
-        studentName: certificate.studentName,
-        courseName: certificate.courseName,
-        institute: process.env.INSTITUTE_NAME,
-        issueDate: certificate.issueDate,
-        verificationUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify/${certificate.certificateId}`,
-        blockchainHash: certificate.blockchainHash,
-        transactionHash: certificate.transactionHash
-      };
 
-      const qrString = JSON.stringify(qrData);
-      const fileName = `qr_${certificate.certificateId}.png`;
-      const filePath = path.join(this.qrOutputDir, fileName);
-
-      // Generate QR code with high quality
-      await QRCode.toFile(filePath, qrString, {
-        width: 200,
-        height: 200,
-        margin: 2,
-        color: {
-          dark: '#1e40af',
-          light: '#ffffff'
-        },
-        errorCorrectionLevel: 'H' // High error correction
-      });
-
-      console.log(`✅ QR code generated: ${fileName}`);
-      // Return relative path from public directory for web serving
-      return `qr-codes/${fileName}`;
-
-    } catch (error) {
-      console.error('❌ QR code generation failed:', error);
-      throw error;
-    }
-  }
-
-  async generatePDF(certificate, qrCodePath) {
+  async generatePDF(certificate) {
     let page = null;
     
     try {
@@ -110,13 +76,20 @@ class PDFService {
       // Set page size to A4
       await page.setViewport({ width: 794, height: 1123 }); // A4 size in pixels at 96 DPI
       
-      // Generate HTML content
-      const htmlContent = this.generateCertificateHTML(certificate, qrCodePath);
+      // Generate QR code data URL
+      const qrDataUrl = await this.generateQRCodeDataURL(certificate);
+      
+      // Generate HTML content with embedded QR code
+      const htmlContent = this.generateCertificateHTML(certificate, qrDataUrl);
       
       await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
       
       const fileName = `certificate_${certificate.certificateId}.pdf`;
-      const filePath = path.join(this.outputDir, fileName);
+      const tempDir = path.join(__dirname, '..', 'temp');
+      const filePath = path.join(tempDir, fileName);
+      
+      // Ensure temp directory exists
+      await fs.mkdir(tempDir, { recursive: true });
       
       // Generate PDF with high quality
       await page.pdf({
@@ -134,8 +107,8 @@ class PDFService {
       });
 
       console.log(`✅ PDF generated: ${fileName}`);
-      // Return relative path from public directory for web serving
-      return `certificates/${fileName}`;
+      // Return full path for IPFS upload (temporary file)
+      return filePath;
 
     } catch (error) {
       console.error('❌ PDF generation failed:', error);
@@ -148,8 +121,33 @@ class PDFService {
     }
   }
 
-  generateCertificateHTML(certificate, qrCodePath) {
-    const qrCodeBase64 = this.getBase64FromPath(qrCodePath);
+  async generateQRCodeDataURL(certificate) {
+    try {
+      const qrData = {
+        certificateId: certificate.certificateId,
+        studentName: certificate.studentName,
+        blockchainHash: certificate.blockchainHash,
+        issueDate: certificate.issueDate,
+        verificationUrl: `${process.env.BASE_URL || 'http://localhost:3000'}/verify/${certificate.certificateId}`
+      };
+
+      const qrCodeDataURL = await QRCode.toDataURL(JSON.stringify(qrData), {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+
+      return qrCodeDataURL;
+    } catch (error) {
+      console.error('❌ QR code data URL generation failed:', error);
+      throw error;
+    }
+  }
+
+  generateCertificateHTML(certificate, qrDataUrl) {
     const issueDate = new Date(certificate.issueDate).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -223,11 +221,14 @@ class PDFService {
           
           .institute-name {
             font-family: 'Playfair Display', serif;
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 700;
             color: #1e40af;
-            margin: 0 0 8px 0;
+            margin: 0 0 12px 0;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            line-height: 1.2;
+            word-wrap: break-word;
+            white-space: normal;
           }
           
           .institute-subtitle {
@@ -235,7 +236,10 @@ class PDFService {
             font-size: 16px;
             font-style: italic;
             color: #f59e0b;
-            margin: 0 0 15px 0;
+            margin: 0 0 20px 0;
+            line-height: 1.4;
+            word-wrap: break-word;
+            white-space: normal;
           }
           
           .decorative-line {
@@ -431,7 +435,7 @@ class PDFService {
 
             <div class="certificate-footer">
               <div class="qr-section">
-                <img src="data:image/png;base64,${qrCodeBase64}" alt="QR Code" class="qr-code" width="150" height="150">
+                <img src="${qrDataUrl}" alt="QR Code" class="qr-code" width="150" height="150">
                 <div class="certificate-id">ID: ${certificate.certificateId}</div>
               </div>
               

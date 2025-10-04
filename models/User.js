@@ -28,10 +28,10 @@ const userSchema = new mongoose.Schema({
     validate: {
       validator: function(password) {
         // Strong password validation: at least 12 chars, uppercase, lowercase, number, special char
-        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
+        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/~`])[A-Za-z\d@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/~`]{12,}$/;
         return strongPasswordRegex.test(password);
       },
-      message: 'Password must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)'
+      message: 'Password must be at least 12 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character'
     }
   },
   

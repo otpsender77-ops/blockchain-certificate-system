@@ -56,17 +56,31 @@ const certificateSchema = new mongoose.Schema({
   },
   transactionHash: {
     type: String,
-    required: true,
-    unique: true,
+    required: false,
     index: true
   },
   blockNumber: {
     type: Number,
-    required: true
+    required: false
   },
   gasUsed: {
     type: String,
-    required: true
+    required: false
+  },
+
+  // IPFS Information
+  ipfsHash: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  },
+  ipfsUrl: {
+    type: String,
+    trim: true
+  },
+  ipfsSize: {
+    type: Number
   },
   
   // Certificate Status

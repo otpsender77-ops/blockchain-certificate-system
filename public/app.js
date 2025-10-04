@@ -8,7 +8,10 @@ class CertificateSystem {
         this.currentPage = 'loginPage';
         this.pendingEmailCertificate = null;
         this.currentViewingCertificate = null;
-        this.apiBaseUrl = window.location.origin + '/api';
+        // Use production backend URL for deployment
+        this.apiBaseUrl = process.env.NODE_ENV === 'production' 
+            ? 'https://blockchain-certificate-backend.onrender.com/api'
+            : window.location.origin + '/api';
         this.authToken = localStorage.getItem('authToken');
         this.metaMaskConnected = false;
         this.metaMaskAddress = null;
@@ -294,6 +297,15 @@ class CertificateSystem {
                 };
             }
 
+            // Forgot password link
+            const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+            if (forgotPasswordLink) {
+                forgotPasswordLink.onclick = (e) => {
+                    e.preventDefault();
+                    this.showForgotPasswordModal();
+                };
+            }
+
             // Complete login button
             const completeLoginBtn = document.getElementById('completeLoginBtn');
             if (completeLoginBtn) {
@@ -393,6 +405,9 @@ class CertificateSystem {
 
             // Modal event listeners
             this.setupModalListeners();
+            
+            // Admin menu event listeners
+            this.setupAdminMenuListeners();
         }, 100);
     }
 
@@ -423,6 +438,107 @@ class CertificateSystem {
                 this.hideModal(e.target.id);
             }
         };
+
+        // Profile modal
+        const closeProfileModal = document.getElementById('closeProfileModal');
+        const cancelProfileBtn = document.getElementById('cancelProfileBtn');
+        const saveProfileBtn = document.getElementById('saveProfileBtn');
+
+        if (closeProfileModal) closeProfileModal.onclick = () => this.hideModal('profileModal');
+        if (cancelProfileBtn) cancelProfileBtn.onclick = () => this.hideModal('profileModal');
+        if (saveProfileBtn) saveProfileBtn.onclick = () => this.saveProfile();
+
+        // Change password modal
+        const closeChangePasswordModal = document.getElementById('closeChangePasswordModal');
+        const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
+        const savePasswordBtn = document.getElementById('savePasswordBtn');
+
+        if (closeChangePasswordModal) closeChangePasswordModal.onclick = () => this.hideModal('changePasswordModal');
+        if (cancelPasswordBtn) cancelPasswordBtn.onclick = () => this.hideModal('changePasswordModal');
+        if (savePasswordBtn) savePasswordBtn.onclick = () => this.changePassword();
+
+        // Settings modal
+        const closeSettingsModal = document.getElementById('closeSettingsModal');
+        const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+
+        if (closeSettingsModal) closeSettingsModal.onclick = () => this.hideModal('settingsModal');
+        if (cancelSettingsBtn) cancelSettingsBtn.onclick = () => this.hideModal('settingsModal');
+        if (saveSettingsBtn) saveSettingsBtn.onclick = () => this.saveSettings();
+        if (resetSettingsBtn) resetSettingsBtn.onclick = () => this.resetSettings();
+
+            // Settings tabs
+            const settingsTabBtns = document.querySelectorAll('.settings-tabs .tab-btn');
+            settingsTabBtns.forEach(btn => {
+                btn.onclick = () => this.switchSettingsTab(btn.dataset.tab);
+            });
+
+            // Batch processing event listeners
+            this.setupBatchProcessingListeners();
+            
+            // Revocation center event listeners
+            this.setupRevocationListeners();
+        }
+
+    setupAdminMenuListeners() {
+        // Admin dropdown toggle
+        const adminMenuToggle = document.getElementById('adminMenuToggle');
+        const adminDropdown = document.getElementById('adminDropdown');
+        
+        if (adminMenuToggle && adminDropdown) {
+            adminMenuToggle.onclick = (e) => {
+                e.preventDefault();
+                adminDropdown.classList.toggle('show');
+            };
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!adminMenuToggle.contains(e.target) && !adminDropdown.contains(e.target)) {
+                    adminDropdown.classList.remove('show');
+                }
+            });
+        }
+
+        // Profile link
+        const profileLink = document.getElementById('profileLink');
+        if (profileLink) {
+            profileLink.onclick = (e) => {
+                e.preventDefault();
+                adminDropdown.classList.remove('show');
+                this.showProfileModal();
+            };
+        }
+
+        // Change password link
+        const changePasswordLink = document.getElementById('changePasswordLink');
+        if (changePasswordLink) {
+            changePasswordLink.onclick = (e) => {
+                e.preventDefault();
+                adminDropdown.classList.remove('show');
+                this.showChangePasswordModal();
+            };
+        }
+
+        // Settings link
+        const settingsLink = document.getElementById('settingsLink');
+        if (settingsLink) {
+            settingsLink.onclick = (e) => {
+                e.preventDefault();
+                adminDropdown.classList.remove('show');
+                this.showSettingsModal();
+            };
+        }
+
+        // Logout link
+        const logoutLink = document.getElementById('logoutLink');
+        if (logoutLink) {
+            logoutLink.onclick = (e) => {
+                e.preventDefault();
+                adminDropdown.classList.remove('show');
+                this.logout();
+            };
+        }
     }
 
     renderNavigation() {
@@ -431,11 +547,50 @@ class CertificateSystem {
 
         if (this.currentUser) {
             nav.innerHTML = `
-                <a href="#" class="nav-link" data-page="adminDashboard">Dashboard</a>
-                <a href="#" class="nav-link" data-page="certificateGeneration">Generate</a>
-                <a href="#" class="nav-link" data-page="certificateManagement">Manage</a>
-                <a href="#" class="nav-link" data-page="verifierPortal">Verify</a>
-                <a href="#" class="nav-link" id="logoutLink">Logout</a>
+                <div class="nav-main">
+                    <a href="#" class="nav-link" data-page="adminDashboard">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="certificateGeneration">
+                        <span class="nav-icon">📜</span>
+                        <span class="nav-text">Generate</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="certificateManagement">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-text">Manage</span>
+                    </a>
+                    <a href="#" class="nav-link" data-page="verifierPortal">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">Verify</span>
+                    </a>
+                </div>
+                <div class="nav-dropdown">
+                    <a href="#" class="nav-link dropdown-toggle" id="adminMenuToggle">
+                        <span class="nav-icon">👤</span>
+                        <span class="nav-text">Admin</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </a>
+                    <div class="dropdown-menu" id="adminDropdown">
+                        <a href="#" class="dropdown-item" id="profileLink">
+                            <span class="dropdown-icon">👤</span>
+                            Profile
+                        </a>
+                        <a href="#" class="dropdown-item" id="changePasswordLink">
+                            <span class="dropdown-icon">🔒</span>
+                            Change Password
+                        </a>
+                        <a href="#" class="dropdown-item" id="settingsLink">
+                            <span class="dropdown-icon">⚙️</span>
+                            Settings
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" class="dropdown-item" id="logoutLink">
+                            <span class="dropdown-icon">🚪</span>
+                            Logout
+                        </a>
+                    </div>
+                </div>
             `;
 
             // Bind navigation links
@@ -706,7 +861,9 @@ class CertificateSystem {
 
     // API Helper Methods
     async apiRequest(endpoint, options = {}) {
-        const url = `${this.apiBaseUrl}${endpoint}`;
+        // Ensure endpoint starts with /
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        const url = `${this.apiBaseUrl}${cleanEndpoint}`;
         const config = {
             headers: {
                 'Content-Type': 'application/json',
@@ -1300,25 +1457,133 @@ class CertificateSystem {
         `).join('');
     }
 
-    viewCertificate(certificateId) {
+    async viewCertificate(certificateId) {
+        console.log('🔍 viewCertificate called with ID:', certificateId);
+        
         const certificate = this.certificates.find(c => c.certificateId === certificateId);
         if (!certificate) {
+            console.error('❌ Certificate not found in local data');
             this.showNotification('Certificate not found', 'error');
             return;
         }
 
-        // Check if PDF exists
-        if (!certificate.pdfPath) {
-            this.showNotification('PDF not found for this certificate', 'error');
+        console.log('✅ Certificate found:', certificate);
+
+        // Check if IPFS hash exists
+        if (!certificate.ipfsHash) {
+            console.error('❌ No IPFS hash found');
+            this.showNotification('Certificate not available on IPFS', 'error');
             return;
         }
 
-        // Show PDF within the system using modal
-        this.showPDFModal(certificate);
-        this.currentViewingCertificate = certificate;
+        console.log('✅ IPFS hash found:', certificate.ipfsHash);
+
+        try {
+            this.showLoadingSpinner();
+            
+            // Retrieve certificate from IPFS
+            console.log('📡 Fetching from IPFS endpoint...');
+            const response = await fetch(`/api/certificates/${certificateId}/ipfs`);
+            const data = await response.json();
+            
+            console.log('📡 IPFS response:', response.status, data);
+            
+            if (response.ok) {
+                console.log('✅ IPFS data retrieved successfully');
+                // Show PDF within the system using modal with IPFS data
+                this.showIPFSPDFModal(data.certificate, data.ipfs);
+                this.currentViewingCertificate = data.certificate;
+            } else {
+                console.error('❌ IPFS fetch failed:', data.error);
+                this.showNotification(data.error || 'Failed to retrieve certificate from IPFS', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error retrieving certificate from IPFS:', error);
+            this.showNotification('Network error while retrieving certificate', 'error');
+        } finally {
+            this.hideLoadingSpinner();
+        }
     }
 
-    // Show PDF in modal within the system
+    // Show PDF from IPFS in modal within the system
+    showIPFSPDFModal(certificate, ipfsData) {
+        console.log('🎭 showIPFSPDFModal called with:', certificate, ipfsData);
+        
+        const modal = document.getElementById('certificateModal');
+        const detail = document.getElementById('certificateDetail');
+        
+        console.log('🎭 Modal elements found:', { modal: !!modal, detail: !!detail });
+        
+        if (!modal || !detail) {
+            console.error('❌ Modal elements not found!');
+            return;
+        }
+
+        detail.innerHTML = `
+            <div class="certificate-viewer">
+                <div class="certificate-header">
+                    <h3>Certificate: ${certificate.certificateId}</h3>
+                    <div class="certificate-actions">
+                        <button class="btn btn--primary" onclick="app.printIPFSCertificate('${certificate.certificateId}')">
+                            <span class="btn-icon">🖨️</span> Print
+                        </button>
+                        <button class="btn btn--outline" onclick="app.downloadIPFSCertificate('${certificate.certificateId}')">
+                            <span class="btn-icon">📥</span> Download
+                        </button>
+                        <button class="btn btn--outline" onclick="app.openIPFSCertificateInNewTab('${ipfsData.url}')">
+                            <span class="btn-icon">🔗</span> Open in New Tab
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="certificate-info">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Student Name:</label>
+                            <span>${certificate.studentName}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Course:</label>
+                            <span>${certificate.courseName}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Issue Date:</label>
+                            <span>${new Date(certificate.issueDate).toLocaleDateString()}</span>
+                        </div>
+                        <div class="info-item">
+                            <label>IPFS Hash:</label>
+                            <span class="ipfs-hash" title="${certificate.ipfsHash}">${certificate.ipfsHash.substring(0, 20)}...</span>
+                        </div>
+                        <div class="info-item">
+                            <label>IPFS Size:</label>
+                            <span>${(certificate.ipfsSize / 1024).toFixed(2)} KB</span>
+                        </div>
+                        <div class="info-item">
+                            <label>IPFS URL:</label>
+                            <a href="${ipfsData.url}" target="_blank" class="ipfs-link">View on IPFS</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pdf-viewer">
+                    <iframe 
+                        src="/api/certificates/${certificate.certificateId}/proxy" 
+                        width="100%" 
+                        height="600px" 
+                        style="border: 1px solid #ddd; border-radius: 8px;"
+                        title="Certificate PDF">
+                    </iframe>
+                </div>
+            </div>
+        `;
+
+        console.log('🎭 Setting modal content and showing modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('show');
+        console.log('🎭 Modal classes after show:', modal.className);
+    }
+
+    // Show PDF in modal within the system (legacy)
     showPDFModal(certificate) {
         const modal = document.getElementById('certificateModal');
         const detail = document.getElementById('certificateDetail');
@@ -1907,10 +2172,6 @@ class CertificateSystem {
                             <div><strong>Verification Count:</strong> ${certificate.verificationCount || 1}</div>
                         </div>
                         
-                        <h4>QR Code:</h4>
-                        <div style="text-align: center; margin-bottom: 16px;">
-                            <canvas id="verificationQRCode" style="display: inline-block; border: 2px solid #1e40af; border-radius: 8px; padding: 8px; background: white;"></canvas>
-                        </div>
                         
                         <div class="verification-meta">
                             <small>Verified via ${method} on ${verificationDate}</small>
@@ -1928,11 +2189,6 @@ class CertificateSystem {
             `;
             resultDiv.classList.add('verification-success');
             resultDiv.classList.remove('verification-error');
-            
-            // Generate QR code for verification result
-            setTimeout(() => {
-                this.generateVerificationQRCode(certificate);
-            }, 100);
             
         } else if (data && data.certificate && data.certificate.status === 'revoked') {
             // Handle revoked certificate
@@ -2025,7 +2281,7 @@ class CertificateSystem {
 
     async downloadPDF(certificateId) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/certificates/${certificateId}/download/pdf`, {
+            const response = await fetch(`${this.apiBaseUrl}/certificates/${certificateId}/download`, {
                 headers: {
                     'Authorization': `Bearer ${this.authToken}`
                 }
@@ -2192,12 +2448,14 @@ class CertificateSystem {
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.remove('hidden');
+            modal.classList.add('show');
         }
     }
 
     hideModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
+            modal.classList.remove('show');
             modal.classList.add('hidden');
         }
     }
@@ -2277,9 +2535,32 @@ class CertificateSystem {
         }
     }
 
+    showLoadingSpinner() {
+        // Create or show loading spinner
+        let spinner = document.getElementById('loadingSpinner');
+        if (!spinner) {
+            spinner = document.createElement('div');
+            spinner.id = 'loadingSpinner';
+            spinner.className = 'loading-spinner';
+            spinner.innerHTML = `
+                <div class="spinner"></div>
+                <div class="loading-text">Loading...</div>
+            `;
+            document.body.appendChild(spinner);
+        }
+        spinner.style.display = 'flex';
+    }
+
+    hideLoadingSpinner() {
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) {
+            spinner.style.display = 'none';
+        }
+    }
+
     validatePasswordStrength(password) {
         // Strong password validation: at least 12 chars, uppercase, lowercase, number, special char
-        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
+        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/~`])[A-Za-z\d@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/~`]{12,}$/;
         return strongPasswordRegex.test(password);
     }
 
@@ -2885,6 +3166,783 @@ class CertificateSystem {
             this.showLoading(false);
             console.error('Revocation error:', error);
             this.showNotification('Failed to revoke certificate', 'error');
+        }
+    }
+
+    // Forgot Password Methods
+    showForgotPasswordModal() {
+        const modal = document.getElementById('forgotPasswordModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('show');
+        this.setupForgotPasswordEventListeners();
+    }
+
+    hideForgotPasswordModal() {
+        const modal = document.getElementById('forgotPasswordModal');
+        modal.classList.remove('show');
+        modal.classList.add('hidden');
+        this.resetForgotPasswordForm();
+    }
+
+    setupForgotPasswordEventListeners() {
+        // Close modal
+        const closeBtn = document.getElementById('closeForgotPasswordModal');
+        if (closeBtn) {
+            closeBtn.onclick = () => this.hideForgotPasswordModal();
+        }
+
+        // Close modal when clicking outside
+        const modal = document.getElementById('forgotPasswordModal');
+        if (modal) {
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    this.hideForgotPasswordModal();
+                }
+            };
+        }
+
+        // Forgot password form
+        const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+        if (forgotPasswordForm) {
+            forgotPasswordForm.onsubmit = (e) => {
+                e.preventDefault();
+                this.requestPasswordReset();
+            };
+        }
+
+        // Reset password form
+        const resetPasswordForm = document.getElementById('resetPasswordForm');
+        if (resetPasswordForm) {
+            resetPasswordForm.onsubmit = (e) => {
+                e.preventDefault();
+                this.resetPassword();
+            };
+        }
+    }
+
+    async requestPasswordReset() {
+        const email = document.getElementById('resetEmail').value.trim();
+        
+        if (!email) {
+            this.showNotification('Please enter your email address', 'error');
+            return;
+        }
+
+        try {
+            this.showLoadingSpinner();
+            
+            const response = await fetch('/api/forgot-password/request-reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.showNotification('OTP sent to your email address', 'success');
+                // Show step 2
+                document.getElementById('forgotPasswordStep1').style.display = 'none';
+                document.getElementById('forgotPasswordStep2').style.display = 'block';
+                // Store email for step 2
+                document.getElementById('resetEmail').setAttribute('data-email', email);
+            } else {
+                this.showNotification(data.error || 'Failed to send OTP', 'error');
+            }
+        } catch (error) {
+            console.error('Password reset request error:', error);
+            this.showNotification('Network error. Please try again.', 'error');
+        } finally {
+            this.hideLoadingSpinner();
+        }
+    }
+
+    async resetPassword() {
+        const email = document.getElementById('resetEmail').getAttribute('data-email');
+        const otp = document.getElementById('resetOTP').value.trim();
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (!email || !otp || !newPassword || !confirmPassword) {
+            this.showNotification('Please fill in all fields', 'error');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            this.showNotification('Passwords do not match', 'error');
+            return;
+        }
+
+        if (!this.validatePasswordStrength(newPassword)) {
+            this.showNotification('Password must be at least 12 characters long and contain uppercase, lowercase, number, and special character', 'error');
+            return;
+        }
+
+        try {
+            this.showLoadingSpinner();
+            
+            const response = await fetch('/api/forgot-password/reset-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, otp, newPassword })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                this.showNotification('Password reset successfully! You can now login with your new password.', 'success');
+                this.hideForgotPasswordModal();
+            } else {
+                this.showNotification(data.error || 'Failed to reset password', 'error');
+            }
+        } catch (error) {
+            console.error('Password reset error:', error);
+            this.showNotification('Network error. Please try again.', 'error');
+        } finally {
+            this.hideLoadingSpinner();
+        }
+    }
+
+    resetForgotPasswordForm() {
+        // Reset forms
+        document.getElementById('forgotPasswordForm').reset();
+        document.getElementById('resetPasswordForm').reset();
+        
+        // Show step 1
+        document.getElementById('forgotPasswordStep1').style.display = 'block';
+        document.getElementById('forgotPasswordStep2').style.display = 'none';
+        
+        // Clear stored email
+        document.getElementById('resetEmail').removeAttribute('data-email');
+    }
+
+    // IPFS Certificate Actions
+    async printIPFSCertificate(certificateId) {
+        try {
+            const response = await fetch(`/api/certificates/${certificateId}/download`);
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const printWindow = window.open(url, '_blank');
+                printWindow.onload = () => {
+                    printWindow.print();
+                    URL.revokeObjectURL(url);
+                };
+            } else {
+                this.showNotification('Failed to load certificate for printing', 'error');
+            }
+        } catch (error) {
+            console.error('Print error:', error);
+            this.showNotification('Error printing certificate', 'error');
+        }
+    }
+
+    async downloadIPFSCertificate(certificateId) {
+        try {
+            const response = await fetch(`/api/certificates/${certificateId}/download`);
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `certificate_${certificateId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                this.showNotification('Certificate downloaded successfully', 'success');
+            } else {
+                this.showNotification('Failed to download certificate', 'error');
+            }
+        } catch (error) {
+            console.error('Download error:', error);
+            this.showNotification('Error downloading certificate', 'error');
+        }
+    }
+
+    openIPFSCertificateInNewTab(ipfsUrl) {
+        window.open(ipfsUrl, '_blank');
+    }
+
+    // Admin Profile and Settings Methods
+    async showProfileModal() {
+        try {
+            const response = await this.apiRequest('/settings/profile');
+            if (response.success) {
+                const profile = response.profile;
+                
+                document.getElementById('profileFullName').value = profile.fullName || '';
+                document.getElementById('profileEmail').value = profile.email || '';
+                document.getElementById('profilePhone').value = profile.phone || '';
+                document.getElementById('profileDepartment').value = profile.department || '';
+                document.getElementById('profilePicture').value = profile.profilePicture || '';
+                
+                this.showModal('profileModal');
+            }
+        } catch (error) {
+            console.error('Failed to load profile:', error);
+            this.showNotification('Failed to load profile', 'error');
+        }
+    }
+
+    async saveProfile() {
+        try {
+            const profileData = {
+                fullName: document.getElementById('profileFullName').value,
+                email: document.getElementById('profileEmail').value,
+                phone: document.getElementById('profilePhone').value,
+                department: document.getElementById('profileDepartment').value,
+                profilePicture: document.getElementById('profilePicture').value
+            };
+
+            const response = await this.apiRequest('/settings/profile', {
+                method: 'PUT',
+                body: JSON.stringify(profileData)
+            });
+
+            if (response.success) {
+                this.showNotification('Profile updated successfully', 'success');
+                this.hideModal('profileModal');
+            } else {
+                this.showNotification(response.error || 'Failed to update profile', 'error');
+            }
+        } catch (error) {
+            console.error('Profile update error:', error);
+            this.showNotification('Failed to update profile', 'error');
+        }
+    }
+
+    showChangePasswordModal() {
+        // Clear form
+        document.getElementById('currentPassword').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+        
+        this.showModal('changePasswordModal');
+    }
+
+    async changePassword() {
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            this.showNotification('All fields are required', 'error');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            this.showNotification('New passwords do not match', 'error');
+            return;
+        }
+
+        // Validate password strength
+        if (!this.validatePasswordStrength(newPassword)) {
+            this.showNotification('Password must be at least 12 characters with uppercase, lowercase, number, and special character', 'error');
+            return;
+        }
+
+        try {
+            const response = await this.apiRequest('/auth/change-password', {
+                method: 'POST',
+                body: JSON.stringify({
+                    oldPassword: currentPassword,
+                    newPassword: newPassword
+                })
+            });
+
+            if (response.success) {
+                this.showNotification('Password changed successfully', 'success');
+                this.hideModal('changePasswordModal');
+            } else {
+                this.showNotification(response.error || 'Failed to change password', 'error');
+            }
+        } catch (error) {
+            console.error('Change password error:', error);
+            this.showNotification('Failed to change password', 'error');
+        }
+    }
+
+    async showSettingsModal() {
+        try {
+            const response = await this.apiRequest('/settings');
+            if (response.success) {
+                const settings = response.settings;
+                
+                // Certificate settings
+                document.getElementById('instituteName').value = settings.certificateSettings?.instituteName || '';
+                document.getElementById('instituteAddress').value = settings.certificateSettings?.instituteAddress || '';
+                document.getElementById('defaultCourseName').value = settings.certificateSettings?.defaultCourseName || '';
+                document.getElementById('certificateValidity').value = settings.certificateSettings?.certificateValidity || 365;
+                
+                // Email settings
+                document.getElementById('fromName').value = settings.emailSettings?.fromName || '';
+                document.getElementById('fromEmail').value = settings.emailSettings?.fromEmail || '';
+                document.getElementById('includeQRCode').checked = settings.emailSettings?.includeQRCode !== false;
+                document.getElementById('includeVerificationLink').checked = settings.emailSettings?.includeVerificationLink !== false;
+                
+                // System settings
+                document.getElementById('maxBatchSize').value = settings.systemSettings?.maxBatchSize || 50;
+                document.getElementById('autoEmailSending').checked = settings.systemSettings?.autoEmailSending !== false;
+                document.getElementById('requireMetaMask').checked = settings.systemSettings?.requireMetaMask !== false;
+                document.getElementById('enableRevocation').checked = settings.systemSettings?.enableRevocation !== false;
+                
+                // Security settings
+                document.getElementById('sessionTimeout').value = settings.securitySettings?.sessionTimeout || 24;
+                document.getElementById('maxLoginAttempts').value = settings.securitySettings?.maxLoginAttempts || 5;
+                document.getElementById('lockoutDuration').value = settings.securitySettings?.lockoutDuration || 15;
+                document.getElementById('requireStrongPasswords').checked = settings.securitySettings?.requireStrongPasswords !== false;
+                
+                this.showModal('settingsModal');
+            }
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+            this.showNotification('Failed to load settings', 'error');
+        }
+    }
+
+    async saveSettings() {
+        try {
+            const settingsData = {
+                certificateSettings: {
+                    instituteName: document.getElementById('instituteName').value,
+                    instituteAddress: document.getElementById('instituteAddress').value,
+                    defaultCourseName: document.getElementById('defaultCourseName').value,
+                    certificateValidity: parseInt(document.getElementById('certificateValidity').value)
+                },
+                emailSettings: {
+                    fromName: document.getElementById('fromName').value,
+                    fromEmail: document.getElementById('fromEmail').value,
+                    includeQRCode: document.getElementById('includeQRCode').checked,
+                    includeVerificationLink: document.getElementById('includeVerificationLink').checked
+                },
+                systemSettings: {
+                    maxBatchSize: parseInt(document.getElementById('maxBatchSize').value),
+                    autoEmailSending: document.getElementById('autoEmailSending').checked,
+                    requireMetaMask: document.getElementById('requireMetaMask').checked,
+                    enableRevocation: document.getElementById('enableRevocation').checked
+                },
+                securitySettings: {
+                    sessionTimeout: parseInt(document.getElementById('sessionTimeout').value),
+                    maxLoginAttempts: parseInt(document.getElementById('maxLoginAttempts').value),
+                    lockoutDuration: parseInt(document.getElementById('lockoutDuration').value),
+                    requireStrongPasswords: document.getElementById('requireStrongPasswords').checked
+                }
+            };
+
+            const response = await this.apiRequest('/settings', {
+                method: 'PUT',
+                body: JSON.stringify(settingsData)
+            });
+
+            if (response.success) {
+                this.showNotification('Settings saved successfully', 'success');
+                this.hideModal('settingsModal');
+            } else {
+                this.showNotification(response.error || 'Failed to save settings', 'error');
+            }
+        } catch (error) {
+            console.error('Settings save error:', error);
+            this.showNotification('Failed to save settings', 'error');
+        }
+    }
+
+    async resetSettings() {
+        if (confirm('Are you sure you want to reset all settings to default? This action cannot be undone.')) {
+            try {
+                const response = await this.apiRequest('/settings/reset', {
+                    method: 'POST'
+                });
+
+                if (response.success) {
+                    this.showNotification('Settings reset to default', 'success');
+                    this.hideModal('settingsModal');
+                } else {
+                    this.showNotification(response.error || 'Failed to reset settings', 'error');
+                }
+            } catch (error) {
+                console.error('Settings reset error:', error);
+                this.showNotification('Failed to reset settings', 'error');
+            }
+        }
+    }
+
+    switchSettingsTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.settings-tabs .tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+
+        // Update tab panels
+        document.querySelectorAll('.settings-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+        const activePanel = document.getElementById(`${tabName}-settings`);
+        if (activePanel) activePanel.classList.add('active');
+    }
+
+    // Batch Processing Methods
+    setupBatchProcessingListeners() {
+        const csvFileInput = document.getElementById('csvFileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const processBatchBtn = document.getElementById('processBatchBtn');
+        const clearBatchBtn = document.getElementById('clearBatchBtn');
+        const downloadResultsBtn = document.getElementById('downloadResultsBtn');
+        const newBatchBtn = document.getElementById('newBatchBtn');
+
+        if (csvFileInput) {
+            csvFileInput.onchange = (e) => this.handleCSVUpload(e);
+        }
+
+        if (uploadArea) {
+            uploadArea.ondragover = (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            };
+
+            uploadArea.ondragleave = () => {
+                uploadArea.classList.remove('dragover');
+            };
+
+            uploadArea.ondrop = (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type === 'text/csv') {
+                    this.handleCSVFile(files[0]);
+                }
+            };
+
+            uploadArea.onclick = () => {
+                csvFileInput.click();
+            };
+        }
+
+        if (processBatchBtn) {
+            processBatchBtn.onclick = () => this.processBatch();
+        }
+
+        if (clearBatchBtn) {
+            clearBatchBtn.onclick = () => this.clearBatch();
+        }
+
+        if (downloadResultsBtn) {
+            downloadResultsBtn.onclick = () => this.downloadBatchResults();
+        }
+
+        if (newBatchBtn) {
+            newBatchBtn.onclick = () => this.startNewBatch();
+        }
+    }
+
+    handleCSVUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            this.handleCSVFile(file);
+        }
+    }
+
+    handleCSVFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const csv = e.target.result;
+            this.parseCSV(csv);
+        };
+        reader.readAsText(file);
+    }
+
+    parseCSV(csv) {
+        const lines = csv.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim());
+        const data = lines.slice(1).filter(line => line.trim()).map(line => {
+            const values = line.split(',').map(v => v.trim());
+            const row = {};
+            headers.forEach((header, index) => {
+                row[header] = values[index] || '';
+            });
+            return row;
+        });
+
+        this.batchData = data;
+        this.displayBatchPreview(data, headers);
+    }
+
+    displayBatchPreview(data, headers) {
+        const preview = document.getElementById('batchPreview');
+        const tableHead = document.getElementById('previewTableHead');
+        const tableBody = document.getElementById('previewTableBody');
+
+        if (preview) preview.style.display = 'block';
+
+        if (tableHead) {
+            tableHead.innerHTML = headers.map(header => `<th>${header}</th>`).join('');
+        }
+
+        if (tableBody) {
+            tableBody.innerHTML = data.slice(0, 10).map(row => 
+                `<tr>${headers.map(header => `<td>${row[header] || ''}</td>`).join('')}</tr>`
+            ).join('');
+        }
+    }
+
+    async processBatch() {
+        if (!this.batchData || this.batchData.length === 0) {
+            this.showNotification('No data to process', 'error');
+            return;
+        }
+
+        const progress = document.getElementById('batchProgress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const progressDetails = document.getElementById('progressDetails');
+
+        if (progress) progress.style.display = 'block';
+
+        let successCount = 0;
+        let errorCount = 0;
+        const results = [];
+
+        for (let i = 0; i < this.batchData.length; i++) {
+            const row = this.batchData[i];
+            const progressPercent = ((i + 1) / this.batchData.length) * 100;
+
+            if (progressFill) progressFill.style.width = `${progressPercent}%`;
+            if (progressText) progressText.textContent = `${Math.round(progressPercent)}% Complete`;
+            if (progressDetails) progressDetails.textContent = `Processing ${i + 1} of ${this.batchData.length}: ${row.studentName || 'Unknown'}`;
+
+            try {
+                const certificateData = {
+                    studentName: row.studentName || '',
+                    parentName: row.parentName || '',
+                    studentEmail: row.studentEmail || '',
+                    courseName: row.courseName || 'Certificate Course in Digital Excellence',
+                    issueDate: row.issueDate || new Date().toISOString()
+                };
+
+                const response = await this.apiRequest('/certificates', {
+                    method: 'POST',
+                    body: JSON.stringify(certificateData)
+                });
+
+                if (response.success) {
+                    successCount++;
+                    results.push({ ...row, status: 'success', certificateId: response.certificate.certificateId });
+                } else {
+                    errorCount++;
+                    results.push({ ...row, status: 'error', error: response.error });
+                }
+            } catch (error) {
+                errorCount++;
+                results.push({ ...row, status: 'error', error: error.message });
+            }
+
+            // Small delay to show progress
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        this.batchResults = results;
+        this.displayBatchResults(successCount, errorCount);
+    }
+
+    displayBatchResults(successCount, errorCount) {
+        const results = document.getElementById('batchResults');
+        const successCountEl = document.getElementById('successCount');
+        const errorCountEl = document.getElementById('errorCount');
+
+        if (results) results.style.display = 'block';
+        if (successCountEl) successCountEl.textContent = successCount;
+        if (errorCountEl) errorCountEl.textContent = errorCount;
+
+        this.showNotification(`Batch processing complete! ${successCount} successful, ${errorCount} failed`, 'info');
+    }
+
+    downloadBatchResults() {
+        if (!this.batchResults) return;
+
+        const csv = this.convertToCSV(this.batchResults);
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `batch_results_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    convertToCSV(data) {
+        if (data.length === 0) return '';
+        
+        const headers = Object.keys(data[0]);
+        const csv = [headers.join(',')];
+        
+        data.forEach(row => {
+            const values = headers.map(header => `"${(row[header] || '').toString().replace(/"/g, '""')}"`);
+            csv.push(values.join(','));
+        });
+        
+        return csv.join('\n');
+    }
+
+    clearBatch() {
+        this.batchData = null;
+        this.batchResults = null;
+        
+        document.getElementById('batchPreview').style.display = 'none';
+        document.getElementById('batchProgress').style.display = 'none';
+        document.getElementById('batchResults').style.display = 'none';
+        document.getElementById('csvFileInput').value = '';
+    }
+
+    startNewBatch() {
+        this.clearBatch();
+    }
+
+    // Revocation Center Methods
+    setupRevocationListeners() {
+        const searchBtn = document.getElementById('searchRevocationBtn');
+        const revokeBtn = document.getElementById('revokeCertificateBtn');
+        const restoreBtn = document.getElementById('restoreCertificateBtn');
+
+        if (searchBtn) {
+            searchBtn.onclick = () => this.searchCertificateForRevocation();
+        }
+
+        if (revokeBtn) {
+            revokeBtn.onclick = () => this.revokeCertificate();
+        }
+
+        if (restoreBtn) {
+            restoreBtn.onclick = () => this.restoreCertificate();
+        }
+    }
+
+    async searchCertificateForRevocation() {
+        const searchInput = document.getElementById('revocationSearch');
+        const query = searchInput.value.trim();
+
+        if (!query) {
+            this.showNotification('Please enter a certificate ID or transaction hash', 'error');
+            return;
+        }
+
+        try {
+            const response = await this.apiRequest(`/certificates/search/${encodeURIComponent(query)}`);
+            
+            if (response.success && response.certificate) {
+                this.displayCertificateForRevocation(response.certificate);
+            } else {
+                this.showNotification('Certificate not found', 'error');
+                document.getElementById('revocationResults').style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+            this.showNotification('Error searching for certificate', 'error');
+        }
+    }
+
+    displayCertificateForRevocation(certificate) {
+        const results = document.getElementById('revocationResults');
+        const infoGrid = document.getElementById('certificateInfoGrid');
+        const revokeBtn = document.getElementById('revokeCertificateBtn');
+        const restoreBtn = document.getElementById('restoreCertificateBtn');
+
+        if (results) results.style.display = 'block';
+
+        if (infoGrid) {
+            infoGrid.innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">Certificate ID</div>
+                    <div class="info-value">${certificate.certificateId}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Student Name</div>
+                    <div class="info-value">${certificate.studentName}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Course</div>
+                    <div class="info-value">${certificate.courseName}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Issue Date</div>
+                    <div class="info-value">${new Date(certificate.issueDate).toLocaleDateString()}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value">${certificate.revoked ? 'Revoked' : 'Active'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Transaction Hash</div>
+                    <div class="info-value">${certificate.transactionHash || 'Pending'}</div>
+                </div>
+            `;
+        }
+
+        if (certificate.revoked) {
+            if (restoreBtn) restoreBtn.style.display = 'inline-flex';
+            if (revokeBtn) revokeBtn.style.display = 'none';
+        } else {
+            if (revokeBtn) revokeBtn.style.display = 'inline-flex';
+            if (restoreBtn) restoreBtn.style.display = 'none';
+        }
+
+        this.currentRevocationCertificate = certificate;
+    }
+
+    async revokeCertificate() {
+        if (!this.currentRevocationCertificate) return;
+
+        if (!confirm('Are you sure you want to revoke this certificate? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await this.apiRequest(`/certificates/${this.currentRevocationCertificate.certificateId}/revoke`, {
+                method: 'POST'
+            });
+
+            if (response.success) {
+                this.showNotification('Certificate revoked successfully', 'success');
+                this.currentRevocationCertificate.revoked = true;
+                this.displayCertificateForRevocation(this.currentRevocationCertificate);
+            } else {
+                this.showNotification(response.error || 'Failed to revoke certificate', 'error');
+            }
+        } catch (error) {
+            console.error('Revocation error:', error);
+            this.showNotification('Error revoking certificate', 'error');
+        }
+    }
+
+    async restoreCertificate() {
+        if (!this.currentRevocationCertificate) return;
+
+        if (!confirm('Are you sure you want to restore this certificate?')) {
+            return;
+        }
+
+        try {
+            const response = await this.apiRequest(`/certificates/${this.currentRevocationCertificate.certificateId}/restore`, {
+                method: 'POST'
+            });
+
+            if (response.success) {
+                this.showNotification('Certificate restored successfully', 'success');
+                this.currentRevocationCertificate.revoked = false;
+                this.displayCertificateForRevocation(this.currentRevocationCertificate);
+            } else {
+                this.showNotification(response.error || 'Failed to restore certificate', 'error');
+            }
+        } catch (error) {
+            console.error('Restoration error:', error);
+            this.showNotification('Error restoring certificate', 'error');
         }
     }
 }

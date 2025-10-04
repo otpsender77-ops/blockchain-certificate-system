@@ -28,7 +28,7 @@ const loginSchema = Joi.object({
   password: Joi.string()
     .min(12)
     .max(128)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/)
+    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/~`])[A-Za-z\d@$!%*?&#^()_+\-=\[\]{};':"\\|,.<>\/~`]{12,}$/)
     .required()
     .messages({
       'string.min': 'Password must be at least 12 characters long',

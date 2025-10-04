@@ -1,13 +1,62 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs').promises;
 const { authenticateToken } = require('./auth');
 const Certificate = require('../models/Certificate');
 const EmailLog = require('../models/EmailLog');
 const blockchainService = require('../services/blockchainService');
 const emailService = require('../services/emailService');
 const pdfService = require('../services/pdfService');
+const ipfsService = require('../services/ipfsService');
 const router = express.Router();
+
+// Cleanup utility function
+async function cleanupTempFiles() {
+  try {
+    const tempDir = path.join(__dirname, '..', 'temp');
+    const files = await fs.readdir(tempDir);
+    const pdfFiles = files.filter(file => file.endsWith('.pdf'));
+    
+    if (pdfFiles.length > 0) {
+      console.log(`🧹 Found ${pdfFiles.length} orphaned PDF files in temp directory`);
+      
+      for (const file of pdfFiles) {
+        try {
+          const filePath = path.join(tempDir, file);
+          const stats = await fs.stat(filePath);
+          const ageInHours = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60);
+          
+          // Delete files older than 1 hour
+          if (ageInHours > 1) {
+            await fs.unlink(filePath);
+            console.log(`🗑️ Cleaned up orphaned file: ${file} (age: ${ageInHours.toFixed(1)}h)`);
+          }
+        } catch (fileError) {
+          console.warn(`⚠️ Failed to clean up ${file}:`, fileError.message);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Temp cleanup failed:', error.message);
+  }
+}
+
+// Schedule cleanup every 30 minutes
+setInterval(cleanupTempFiles, 30 * 60 * 1000);
+
+// Run initial cleanup
+cleanupTempFiles();
+
+// Manual cleanup endpoint for admin
+router.post('/cleanup-temp', authenticateToken, async (req, res) => {
+  try {
+    await cleanupTempFiles();
+    res.json({ success: true, message: 'Temp cleanup completed' });
+  } catch (error) {
+    res.status(500).json({ error: 'Cleanup failed', message: error.message });
+  }
+});
 
 // Helper function to resolve PDF/QR paths
 function resolveFilePath(filePath) {
@@ -123,6 +172,39 @@ router.get('/email-history', authenticateToken, async (req, res) => {
   }
 });
 
+// Search certificate by ID or transaction hash
+router.get('/search/:query', authenticateToken, async (req, res) => {
+  try {
+    const query = req.params.query;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+
+    const certificate = await Certificate.findOne({
+      $or: [
+        { certificateId: query },
+        { transactionHash: query }
+      ]
+    });
+
+    if (!certificate) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Certificate not found' 
+      });
+    }
+
+    res.json({
+      success: true,
+      certificate
+    });
+  } catch (error) {
+    console.error('Search certificate error:', error);
+    res.status(500).json({ error: 'Failed to search certificate' });
+  }
+});
+
 // Get certificate by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -185,66 +267,93 @@ router.post('/', authenticateToken, async (req, res) => {
     // Generate blockchain hash
     const blockchainHash = blockchainService.generateCertificateHash(certificateData);
 
-    // Issue certificate on blockchain
+    // Create certificate record first (without blockchain data)
+    const certificate = new Certificate({
+      ...certificateData,
+      blockchainHash
+    });
+
+    await certificate.save();
+
+    // Step 1: Generate PDF with embedded QR code
+    const pdfResult = await pdfService.generateCertificatePDF(certificate);
+    
+    if (!pdfResult.success) {
+      throw new Error('Failed to generate PDF');
+    }
+
+    // Step 2: Upload to IPFS
+    const ipfsResult = await ipfsService.uploadCertificateToIPFS(pdfResult.pdfPath);
+    
+    // Step 3: Issue certificate on blockchain with IPFS hash
     const blockchainResult = await blockchainService.issueCertificate({
       certificateId,
       studentName,
       courseName,
       instituteName: process.env.INSTITUTE_NAME,
       issueDate: certificateData.issueDate,
-      certificateHash: blockchainHash
+      certificateHash: blockchainHash,
+      ipfsHash: ipfsResult.hash
     });
 
-    // Create certificate record
-    const certificate = new Certificate({
-      ...certificateData,
-      blockchainHash,
-      transactionHash: blockchainResult.transactionHash,
-      blockNumber: blockchainResult.blockNumber,
-      gasUsed: blockchainResult.gasUsed
-    });
-
+    // Step 4: Update certificate with all data (no local PDF storage)
+    certificate.pdfPath = null; // No local PDF storage
+    certificate.ipfsHash = ipfsResult.hash;
+    certificate.ipfsUrl = ipfsResult.url;
+    certificate.ipfsSize = ipfsResult.size;
+    certificate.transactionHash = blockchainResult.transactionHash;
+    certificate.blockNumber = blockchainResult.blockNumber;
+    certificate.gasUsed = blockchainResult.gasUsed;
     await certificate.save();
 
-    // Generate PDF and QR code
-    const pdfResult = await pdfService.generateCertificatePDF(certificate);
-    
-    if (pdfResult.success) {
-      certificate.pdfPath = pdfResult.pdfPath;
-      certificate.qrCodePath = pdfResult.qrCodePath;
-      await certificate.save();
-    }
-
-    // Prepare email attachments
+    // Step 5: Send email with PDF attachment (after all data is saved)
     const attachments = [];
-    if (pdfResult.success) {
-      const pdfFullPath = resolveFilePath(pdfResult.pdfPath);
-      const qrFullPath = resolveFilePath(pdfResult.qrCodePath);
-      
-      attachments.push({
-        filename: `Certificate_${certificateId}.pdf`,
-        path: pdfFullPath,
-        contentType: 'application/pdf',
-        size: require('fs').statSync(pdfFullPath).size
-      });
-      
-      attachments.push({
-        filename: `QR_Code_${certificateId}.png`,
-        path: qrFullPath,
-        contentType: 'image/png',
-        size: require('fs').statSync(qrFullPath).size
-      });
+    const pdfFullPath = pdfResult.pdfPath; // Use temp path for email
+    
+    attachments.push({
+      filename: `Certificate_${certificateId}.pdf`,
+      path: pdfFullPath,
+      contentType: 'application/pdf'
+    });
+
+    // Send certificate email
+    try {
+      await emailService.sendCertificateEmail(
+        certificate,
+        attachments
+      );
+      console.log(`✅ Certificate email sent to ${certificate.studentEmail}`);
+    } catch (emailError) {
+      console.error('❌ Failed to send certificate email:', emailError);
     }
 
-    // Send email to student
-    const emailResult = await emailService.sendCertificateEmail(certificate, attachments);
+    // Step 6: Clean up temporary PDF file
+    try {
+      if (await fs.access(pdfFullPath).then(() => true).catch(() => false)) {
+        await fs.unlink(pdfFullPath);
+        console.log(`🗑️ Cleaned up temporary PDF: ${path.basename(pdfFullPath)}`);
+      }
+    } catch (cleanupError) {
+      console.warn('⚠️ Failed to clean up temporary PDF:', cleanupError.message);
+      // Schedule cleanup for later
+      setTimeout(async () => {
+        try {
+          if (await fs.access(pdfFullPath).then(() => true).catch(() => false)) {
+            await fs.unlink(pdfFullPath);
+            console.log(`🗑️ Delayed cleanup successful: ${path.basename(pdfFullPath)}`);
+          }
+        } catch (delayedError) {
+          console.error('❌ Delayed cleanup failed:', delayedError.message);
+        }
+      }, 5000); // Try again in 5 seconds
+    }
 
     res.status(201).json({
       success: true,
       certificate,
       blockchain: blockchainResult,
       pdf: pdfResult,
-      email: emailResult,
+      ipfs: ipfsResult,
       message: 'Certificate generated successfully'
     });
 
@@ -265,7 +374,41 @@ router.post('/:id/resend-email', authenticateToken, async (req, res) => {
 
     // Prepare attachments
     const attachments = [];
-    if (certificate.pdfPath) {
+    
+    // If certificate has IPFS hash, download PDF from Pinata
+    if (certificate.ipfsHash) {
+      try {
+        console.log(`📥 Downloading PDF from IPFS for resend: ${certificate.ipfsHash}`);
+        
+        // Download PDF from IPFS
+        const ipfsResult = await ipfsService.retrieveFromIPFS(certificate.ipfsHash);
+        
+        if (ipfsResult && ipfsResult.data && ipfsResult.data.length > 0) {
+          // Create temporary file for email attachment
+          const tempDir = path.join(__dirname, '..', 'temp');
+          await fs.mkdir(tempDir, { recursive: true });
+          
+          const tempPdfPath = path.join(tempDir, `resend_${certificate.certificateId}.pdf`);
+          await fs.writeFile(tempPdfPath, ipfsResult.data);
+          
+          attachments.push({
+            filename: `Certificate_${certificate.certificateId}.pdf`,
+            path: tempPdfPath,
+            contentType: 'application/pdf'
+          });
+          
+          console.log(`✅ PDF downloaded from IPFS for resend: ${tempPdfPath} (${ipfsResult.data.length} bytes)`);
+        } else {
+          console.log('⚠️ No PDF data retrieved from IPFS:', ipfsResult ? 'data missing or empty' : 'no result');
+        }
+      } catch (ipfsError) {
+        console.error('❌ Failed to download PDF from IPFS:', ipfsError);
+        // Continue without PDF attachment
+      }
+    }
+    
+    // Fallback to local PDF if IPFS fails and local file exists
+    if (attachments.length === 0 && certificate.pdfPath) {
       const pdfFullPath = resolveFilePath(certificate.pdfPath);
       if (pdfFullPath) {
         attachments.push({
@@ -273,27 +416,28 @@ router.post('/:id/resend-email', authenticateToken, async (req, res) => {
           path: pdfFullPath,
           contentType: 'application/pdf'
         });
-      }
-    }
-    
-    if (certificate.qrCodePath) {
-      const qrFullPath = resolveFilePath(certificate.qrCodePath);
-      if (qrFullPath) {
-        attachments.push({
-          filename: `QR_Code_${certificate.certificateId}.png`,
-          path: qrFullPath,
-          contentType: 'image/png'
-        });
+        console.log(`📄 Using local PDF for resend: ${pdfFullPath}`);
       }
     }
 
     // Send email
     const emailResult = await emailService.sendCertificateEmail(certificate, attachments);
 
+    // Clean up temporary PDF file if created
+    if (attachments.length > 0 && attachments[0].path.includes('resend_')) {
+      try {
+        await fs.unlink(attachments[0].path);
+        console.log(`🗑️ Cleaned up temporary resend PDF: ${path.basename(attachments[0].path)}`);
+      } catch (cleanupError) {
+        console.error('⚠️ Failed to clean up temporary resend PDF:', cleanupError);
+      }
+    }
+
     res.json({
       success: true,
       email: emailResult,
-      message: 'Email sent successfully'
+      message: 'Email sent successfully',
+      attachmentsCount: attachments.length
     });
 
   } catch (error) {
@@ -577,31 +721,47 @@ router.post('/batch', authenticateToken, async (req, res) => {
         const certificate = new Certificate(certificateData);
         await certificate.save();
 
-        // Generate PDF and QR code
+        // Generate PDF with embedded QR code and upload to IPFS
         const pdfResult = await pdfService.generateCertificatePDF(certificate);
 
-        // Update certificate with file paths
-        certificate.pdfPath = pdfResult.pdfPath;
-        certificate.qrCodePath = pdfResult.qrCodePath;
+        // Update certificate with IPFS data
+        certificate.ipfsHash = pdfResult.ipfsHash;
+        certificate.ipfsUrl = pdfResult.ipfsUrl;
+        certificate.ipfsSize = pdfResult.ipfsSize;
         await certificate.save();
 
-        // Send email with attachments
+        // Send email with PDF attachment from IPFS
         try {
-          const attachments = [
-            {
+          // Download PDF from IPFS for email attachment
+          const ipfsResult = await ipfsService.retrieveFromIPFS(certificate.ipfsHash);
+          
+          const attachments = [];
+          if (ipfsResult && ipfsResult.data && ipfsResult.data.length > 0) {
+            // Create temporary file for email attachment
+            const tempDir = path.join(__dirname, '..', 'temp');
+            await fs.mkdir(tempDir, { recursive: true });
+            
+            const tempPdfPath = path.join(tempDir, `batch_${certificateId}.pdf`);
+            await fs.writeFile(tempPdfPath, ipfsResult.data);
+            
+            attachments.push({
               filename: `Certificate_${certificateId}.pdf`,
-              path: resolveFilePath(certificate.pdfPath),
+              path: tempPdfPath,
               contentType: 'application/pdf'
-            },
-            {
-              filename: `QR_Code_${certificateId}.png`,
-              path: resolveFilePath(certificate.qrCodePath),
-              contentType: 'image/png'
-            }
-          ];
+            });
+          }
           
           await emailService.sendCertificateEmail(certificate, attachments);
           await certificate.markEmailSent();
+          
+          // Clean up temporary PDF file
+          if (attachments.length > 0) {
+            try {
+              await fs.unlink(attachments[0].path);
+            } catch (cleanupError) {
+              console.error(`Failed to clean up temporary PDF for ${certificateId}:`, cleanupError);
+            }
+          }
         } catch (emailError) {
           console.error(`Email failed for ${certificateId}:`, emailError);
         }
@@ -611,7 +771,9 @@ router.post('/batch', authenticateToken, async (req, res) => {
             index: globalIndex + 1,
             certificateId,
             studentName: student.studentName,
-            studentEmail: student.studentEmail
+            studentEmail: student.studentEmail,
+            ipfsHash: certificate.ipfsHash,
+            ipfsUrl: certificate.ipfsUrl
           };
 
         } catch (error) {
@@ -654,15 +816,7 @@ router.post('/batch', authenticateToken, async (req, res) => {
 // Revoke certificate
 router.post('/:id/revoke', authenticateToken, async (req, res) => {
   try {
-    const { reason, revokedBy } = req.body;
-
-    if (!reason || !reason.trim()) {
-      return res.status(400).json({ error: 'Revocation reason is required' });
-    }
-
-    if (!revokedBy || !revokedBy.trim()) {
-      return res.status(400).json({ error: 'RevokedBy field is required' });
-    }
+    const { reason = 'Administrative revocation', revokedBy = 'System Administrator' } = req.body;
 
     const certificate = await Certificate.findOne({ certificateId: req.params.id });
     
@@ -670,12 +824,16 @@ router.post('/:id/revoke', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Certificate not found' });
     }
 
-    if (certificate.status === 'revoked') {
+    if (certificate.revoked) {
       return res.status(400).json({ error: 'Certificate is already revoked' });
     }
 
-    // Revoke certificate
-    await certificate.revokeCertificate(reason, revokedBy);
+    // Update certificate status
+    certificate.revoked = true;
+    certificate.revocationReason = reason;
+    certificate.revokedBy = revokedBy;
+    certificate.revokedDate = new Date();
+    await certificate.save();
 
     // Send revocation notification email
     try {
@@ -690,7 +848,7 @@ router.post('/:id/revoke', authenticateToken, async (req, res) => {
       certificate: {
         certificateId: certificate.certificateId,
         studentName: certificate.studentName,
-        status: certificate.status,
+        revoked: certificate.revoked,
         revocationReason: certificate.revocationReason,
         revokedDate: certificate.revokedDate,
         revokedBy: certificate.revokedBy
@@ -700,6 +858,42 @@ router.post('/:id/revoke', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Certificate revocation error:', error);
     res.status(500).json({ error: 'Failed to revoke certificate' });
+  }
+});
+
+// Restore certificate
+router.post('/:id/restore', authenticateToken, async (req, res) => {
+  try {
+    const certificate = await Certificate.findOne({ certificateId: req.params.id });
+    
+    if (!certificate) {
+      return res.status(404).json({ error: 'Certificate not found' });
+    }
+
+    if (!certificate.revoked) {
+      return res.status(400).json({ error: 'Certificate is not revoked' });
+    }
+
+    // Restore certificate
+    certificate.revoked = false;
+    certificate.revocationReason = null;
+    certificate.revokedBy = null;
+    certificate.revokedDate = null;
+    await certificate.save();
+
+    res.json({
+      success: true,
+      message: 'Certificate restored successfully',
+      certificate: {
+        certificateId: certificate.certificateId,
+        studentName: certificate.studentName,
+        revoked: certificate.revoked
+      }
+    });
+
+  } catch (error) {
+    console.error('Certificate restoration error:', error);
+    res.status(500).json({ error: 'Failed to restore certificate' });
   }
 });
 
@@ -727,5 +921,113 @@ function generateBlockchainHash() {
   }
   return hash;
 }
+
+// Get certificate from IPFS
+router.get('/:id/ipfs', async (req, res) => {
+  try {
+    const certificate = await Certificate.findOne({ certificateId: req.params.id });
+    
+    if (!certificate) {
+      return res.status(404).json({ error: 'Certificate not found' });
+    }
+
+    if (!certificate.ipfsHash) {
+      return res.status(404).json({ error: 'Certificate not available on IPFS' });
+    }
+
+    // Retrieve from IPFS
+    const ipfsResult = await ipfsService.retrieveFromIPFS(certificate.ipfsHash);
+    
+    res.json({
+      success: true,
+      certificate: {
+        certificateId: certificate.certificateId,
+        studentName: certificate.studentName,
+        courseName: certificate.courseName,
+        issueDate: certificate.issueDate,
+        ipfsHash: certificate.ipfsHash,
+        ipfsUrl: certificate.ipfsUrl,
+        ipfsSize: certificate.ipfsSize
+      },
+      ipfs: ipfsResult
+    });
+
+  } catch (error) {
+    console.error('IPFS retrieval error:', error);
+    res.status(500).json({ error: 'Failed to retrieve certificate from IPFS' });
+  }
+});
+
+// Download certificate from IPFS
+router.get('/:id/download', async (req, res) => {
+  try {
+    const certificate = await Certificate.findOne({ certificateId: req.params.id });
+    
+    if (!certificate) {
+      return res.status(404).json({ error: 'Certificate not found' });
+    }
+
+    if (!certificate.ipfsHash) {
+      return res.status(404).json({ error: 'Certificate not available on IPFS' });
+    }
+
+    // Retrieve from IPFS
+    const ipfsResult = await ipfsService.retrieveFromIPFS(certificate.ipfsHash);
+    
+    if (ipfsResult.data) {
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="certificate_${certificate.certificateId}.pdf"`);
+      res.setHeader('Content-Length', ipfsResult.size);
+      
+      // Send the PDF data
+      res.send(ipfsResult.data);
+    } else {
+      // Redirect to IPFS gateway
+      res.redirect(ipfsResult.url);
+    }
+
+  } catch (error) {
+    console.error('IPFS download error:', error);
+    res.status(500).json({ error: 'Failed to download certificate from IPFS' });
+  }
+});
+
+// Proxy endpoint for PDF viewing (bypasses X-Frame-Options)
+router.get('/:id/proxy', async (req, res) => {
+  try {
+    const certificate = await Certificate.findOne({ certificateId: req.params.id });
+    
+    if (!certificate) {
+      return res.status(404).json({ error: 'Certificate not found' });
+    }
+
+    if (!certificate.ipfsHash) {
+      return res.status(404).json({ error: 'Certificate not available on IPFS' });
+    }
+
+    // Retrieve from IPFS
+    const ipfsResult = await ipfsService.retrieveFromIPFS(certificate.ipfsHash);
+    
+    if (ipfsResult.data) {
+      // Set headers for PDF viewing (not download)
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline; filename="certificate.pdf"');
+      res.setHeader('Content-Length', ipfsResult.size);
+      // Remove X-Frame-Options to allow iframe embedding
+      res.removeHeader('X-Frame-Options');
+      
+      // Send the PDF data
+      res.send(ipfsResult.data);
+    } else {
+      // If we can't get the data, redirect to IPFS gateway
+      res.redirect(ipfsResult.url);
+    }
+
+  } catch (error) {
+    console.error('IPFS proxy error:', error);
+    res.status(500).json({ error: 'Failed to proxy certificate from IPFS' });
+  }
+});
 
 module.exports = router;

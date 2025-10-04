@@ -146,7 +146,8 @@ class BlockchainService {
         courseName,
         instituteName,
         issueDate,
-        certificateHash
+        certificateHash,
+        ipfsHash
       } = certificateData;
 
       // Use real blockchain transactions for authentic certificate storage
@@ -160,17 +161,21 @@ class BlockchainService {
         const gasUsed = '21000'; // Standard transaction gas
         
         console.log(`🔗 Fallback mode: Generated transaction ${transactionHash} at block ${blockNumber}`);
+        console.log(`📁 IPFS Hash: ${ipfsHash || 'Not provided'}`);
         
         return {
           transactionHash,
           blockNumber,
           gasUsed,
-          status: 'fallback'
+          status: 'fallback',
+          ipfsHash: ipfsHash || null
         };
       }
 
       // Use smart contract (real blockchain transaction)
       console.log(`🔗 Real blockchain: Issuing certificate ${certificateId} on blockchain...`);
+      console.log(`📁 IPFS Hash: ${ipfsHash || 'Not provided'}`);
+      
       const tx = await this.contract.methods.issueCertificate(
         certificateId,
         studentName,
@@ -190,7 +195,8 @@ class BlockchainService {
         transactionHash: tx.transactionHash,
         blockNumber: Number(tx.blockNumber),
         gasUsed: String(tx.gasUsed),
-        status: 'blockchain'
+        status: 'blockchain',
+        ipfsHash: ipfsHash || null
       };
 
     } catch (error) {
