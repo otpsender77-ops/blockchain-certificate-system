@@ -1,0 +1,17 @@
+# Environment Variables for Vercel Deployment
+# Add these in your Vercel dashboard under Settings > Environment Variables
+
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority&appName=appname
+JWT_SECRET=your-super-secret-jwt-key-here
+JWT_EXPIRES_IN=24h
+EMAIL_SERVICE=brevo
+EMAIL_USER=your-email@example.com
+EMAIL_PASS=your-brevo-api-key
+EMAIL_FROM=your-email@example.com
+PINATA_API_KEY=your-pinata-api-key
+PINATA_SECRET_KEY=your-pinata-secret-key
+PRIVATE_KEY=your-private-key-here
+RPC_URL=https://holesky.infura.io/v3/your-project-id
+CONTRACT_ADDRESS=your-contract-address
+NODE_ENV=production
+PORT=3000
