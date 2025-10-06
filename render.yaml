@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: blockchain-certificate-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        fromDatabase:
+          name: blockchain-certificates
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: EMAIL_HOST
+        value: smtp-relay.brevo.com
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_SECURE
+        value: false
+      - key: EMAIL_USER
+        value: 9715b5001@smtp-brevo.com
+      - key: EMAIL_PASS
+        value: bQ7JmB4xE2kUTFqV
+      - key: SMTP_FROM
+        value: Digital Excellence Institute <otpsender77@gmail.com>
+      - key: PINATA_API_KEY
+        value: 4d4c23ad6fc7594b49da
+      - key: PINATA_SECRET_KEY
+        value: ae6734648d4343fd699db2f3941c45e3e285f0a8c108013d9b8f83b9f54323f4
+      - key: PRIVATE_KEY
+        value: 8e4d8d9b1437534cd90f705f8e6f253d40a3df3f30f3489aa5ec761da10e23bd
+      - key: RPC_URL
+        value: https://rpc.ankr.com/eth_holesky
+      - key: CONTRACT_ADDRESS
+        value: 0x2dcd685bA9fd46B85849Fac86b908491BC9e0783
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        value: AdminUser@Blockchain123#
+      - key: ADMIN_EMAIL
+        value: otpsender77@gmail.com
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        generateValue: true
