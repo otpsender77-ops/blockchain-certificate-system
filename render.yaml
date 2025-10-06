@@ -3,7 +3,7 @@ services:
     name: blockchain-certificate-backend
     env: node
     plan: free
-    buildCommand: npm install --omit=dev --no-audit --no-fund --prefer-offline
+    buildCommand: npm install --omit=dev --no-audit --no-fund --prefer-offline --no-optional
     startCommand: node server.js
     envVars:
       - key: NODE_ENV

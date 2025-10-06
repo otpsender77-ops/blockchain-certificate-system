@@ -28,7 +28,7 @@ This guide will help you deploy the blockchain certificate system backend to Ren
 - **Branch**: `master`
 - **Root Directory**: Leave empty (root)
 - **Runtime**: `Node 20.x`
-- **Build Command**: `npm install --omit=dev --no-audit --no-fund --prefer-offline`
+- **Build Command**: `npm install --omit=dev --no-audit --no-fund --prefer-offline --no-optional`
 - **Start Command**: `node server.js`
 
 #### Step 3: Environment Variables

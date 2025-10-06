@@ -1,4 +1,10 @@
-const puppeteer = require('puppeteer');
+let puppeteer;
+try {
+  puppeteer = require('puppeteer');
+} catch (error) {
+  console.warn('⚠️ Puppeteer not available - PDF generation will be disabled');
+  puppeteer = null;
+}
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs').promises;
@@ -63,6 +69,11 @@ class PDFService {
     let page = null;
     
     try {
+      // Check if puppeteer is available
+      if (!puppeteer) {
+        throw new Error('PDF generation is not available - puppeteer not installed');
+      }
+
       // Reuse browser instance if available, otherwise create new one
       if (!this.browser) {
         this.browser = await puppeteer.launch({
@@ -484,6 +495,11 @@ class PDFService {
     let browser = null;
     
     try {
+      // Check if puppeteer is available
+      if (!puppeteer) {
+        throw new Error('PDF generation is not available - puppeteer not installed');
+      }
+
       browser = await puppeteer.launch({
         headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox']
