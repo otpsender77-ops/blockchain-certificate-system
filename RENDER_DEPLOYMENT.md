@@ -28,7 +28,7 @@ This guide will help you deploy the blockchain certificate system backend to Ren
 - **Branch**: `master`
 - **Root Directory**: Leave empty (root)
 - **Runtime**: `Node 20.x`
-- **Build Command**: `curl -fsSL https://get.pnpm.io/install.sh | sh - && ~/.local/share/pnpm/pnpm install --omit=dev`
+- **Build Command**: `npm install --omit=dev --no-audit --no-fund --prefer-offline`
 - **Start Command**: `node server.js`
 
 #### Step 3: Environment Variables
@@ -106,7 +106,7 @@ After backend deployment, update the frontend to use the Render backend:
 
 1. **"npm install" gets stuck**: 
    - **Cause**: Render's free build container (512 MB RAM) runs out of memory
-   - **Solution**: Use pnpm (already configured) or remove heavy dependencies
+   - **Solution**: Use optimized npm flags (already configured) or remove heavy dependencies
 
 2. **Out of Memory (OOM) errors**:
    - **Look for**: `Killed` or `npm ERR! code 137` in logs
@@ -120,7 +120,7 @@ After backend deployment, update the frontend to use the Render backend:
 
 4. **Large dependencies**:
    - **Heavy deps**: `puppeteer`, `canvas`, `ethers`, `ipfs-http-client`
-   - **Solution**: Use pnpm (already configured) or consider alternatives
+   - **Solution**: Use optimized npm flags (already configured) or consider alternatives
 
 5. **Database Connection**: Verify MongoDB URI and network access
 6. **Environment Variables**: Ensure all required variables are set

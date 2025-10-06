@@ -3,7 +3,7 @@ services:
     name: blockchain-certificate-backend
     env: node
     plan: free
-    buildCommand: curl -fsSL https://get.pnpm.io/install.sh | sh - && ~/.local/share/pnpm/pnpm install --omit=dev
+    buildCommand: npm install --omit=dev --no-audit --no-fund --prefer-offline
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
