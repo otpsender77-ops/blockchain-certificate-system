@@ -13,15 +13,16 @@ const connectDB = async () => {
 
   try {
     const options = {
-      serverSelectionTimeoutMS: 3000, // Keep trying to send operations for 3 seconds
-      socketTimeoutMS: 30000, // Close sockets after 30 seconds of inactivity
-      maxPoolSize: 5, // Maintain up to 5 socket connections
-      minPoolSize: 1, // Maintain a minimum of 1 socket connection
-      maxIdleTimeMS: 20000, // Close connections after 20 seconds of inactivity
-      connectTimeoutMS: 5000, // Give up initial connection after 5 seconds
-      heartbeatFrequencyMS: 10000, // Send a ping every 10 seconds
+      serverSelectionTimeoutMS: 2000, // Keep trying to send operations for 2 seconds
+      socketTimeoutMS: 20000, // Close sockets after 20 seconds of inactivity
+      maxPoolSize: 3, // Maintain up to 3 socket connections
+      minPoolSize: 0, // No minimum connections
+      maxIdleTimeMS: 10000, // Close connections after 10 seconds of inactivity
+      connectTimeoutMS: 3000, // Give up initial connection after 3 seconds
+      heartbeatFrequencyMS: 5000, // Send a ping every 5 seconds
       retryWrites: true,
-      w: 'majority'
+      w: 'majority',
+      retryReads: true
     };
 
     await mongoose.connect(process.env.MONGODB_URI, options);
