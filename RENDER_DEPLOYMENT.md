@@ -27,9 +27,9 @@ This guide will help you deploy the blockchain certificate system backend to Ren
 - **Region**: Choose closest to your users
 - **Branch**: `master`
 - **Root Directory**: Leave empty (root)
-- **Runtime**: `Node`
-- **Build Command**: `npm install`
-- **Start Command**: `npm start`
+- **Runtime**: `Node 20.x`
+- **Build Command**: `curl -fsSL https://get.pnpm.io/install.sh | sh - && ~/.local/share/pnpm/pnpm install --omit=dev`
+- **Start Command**: `node server.js`
 
 #### Step 3: Environment Variables
 
@@ -102,10 +102,29 @@ After backend deployment, update the frontend to use the Render backend:
 
 ### Troubleshooting
 
-1. **Build Failures**: Check Node.js version compatibility
-2. **Database Connection**: Verify MongoDB URI and network access
-3. **Environment Variables**: Ensure all required variables are set
-4. **Logs**: Check Render dashboard logs for errors
+#### Common Build Issues
+
+1. **"npm install" gets stuck**: 
+   - **Cause**: Render's free build container (512 MB RAM) runs out of memory
+   - **Solution**: Use pnpm (already configured) or remove heavy dependencies
+
+2. **Out of Memory (OOM) errors**:
+   - **Look for**: `Killed` or `npm ERR! code 137` in logs
+   - **Solution**: 
+     - Use `--omit=dev` flag (already configured)
+     - Remove heavy deps like `puppeteer` if not essential
+     - Consider upgrading to paid plan for more memory
+
+3. **Node version mismatch**:
+   - **Solution**: Explicitly set Node 20.x in package.json (already configured)
+
+4. **Large dependencies**:
+   - **Heavy deps**: `puppeteer`, `canvas`, `ethers`, `ipfs-http-client`
+   - **Solution**: Use pnpm (already configured) or consider alternatives
+
+5. **Database Connection**: Verify MongoDB URI and network access
+6. **Environment Variables**: Ensure all required variables are set
+7. **Logs**: Check Render dashboard logs for specific errors
 
 ### Next Steps
 
